@@ -139,42 +139,69 @@ def main():
     
     # Validate emails concurrently
     print(f"Validating {len(emails)} emails with {CONCURRENT_JOBS} concurrent jobs...")
+    print("Starting validation process...")
+    print()
     
     valid_emails = []
     invalid_emails = []
     
     start_time = time.time()
+    last_update = start_time
+    
+    # Process in batches to avoid memory issues with large email lists
+    completed = 0
+    batch_size = 1000  # Submit 1000 emails at a time
     
     with ThreadPoolExecutor(max_workers=CONCURRENT_JOBS) as executor:
-        # Submit all validation tasks
-        future_to_email = {
-            executor.submit(validate_single_email, email, validator, disposable_domains): email
-            for email in emails
-        }
-        
-        # Process results as they complete
-        completed = 0
-        for future in as_completed(future_to_email):
-            email, is_valid, reason = future.result()
-            completed += 1
+        # Process emails in batches
+        for batch_start in range(0, len(emails), batch_size):
+            batch_end = min(batch_start + batch_size, len(emails))
+            batch = emails[batch_start:batch_end]
             
-            if is_valid:
-                valid_emails.append((email, reason))
-            else:
-                invalid_emails.append((email, reason))
+            # Submit current batch
+            futures = {
+                executor.submit(validate_single_email, email, validator, disposable_domains): email
+                for email in batch
+            }
             
-            # Dynamic progress indicator - updates on the same line
-            percentage = (completed * 100) // len(emails)
-            elapsed = time.time() - start_time
-            speed = completed / elapsed if elapsed > 0 else 0
-            
-            # Use \r to return to start of line and overwrite previous output
-            sys.stdout.write(f"\rProgress: {completed}/{len(emails)} - {percentage}% | {speed:.1f} emails/sec | {elapsed:.1f}s")
-            sys.stdout.flush()
+            # Process this batch's results
+            for future in as_completed(futures):
+                email, is_valid, reason = future.result()
+                completed += 1
+                
+                if is_valid:
+                    valid_emails.append((email, reason))
+                else:
+                    invalid_emails.append((email, reason))
+                
+                # Show progress every 10 emails or every 3 seconds
+                current_time = time.time()
+                should_update = (
+                    completed % 10 == 0 or 
+                    completed == len(emails) or
+                    (current_time - last_update) >= 3.0
+                )
+                
+                if should_update:
+                    percentage = (completed * 100.0) / len(emails)
+                    elapsed = current_time - start_time
+                    speed = completed / elapsed if elapsed > 0 else 0
+                    
+                    # Calculate ETA
+                    if speed > 0:
+                        remaining = len(emails) - completed
+                        eta_seconds = remaining / speed
+                        eta_minutes = int(eta_seconds // 60)
+                        eta_secs = int(eta_seconds % 60)
+                        eta_str = f"{eta_minutes}m {eta_secs}s" if eta_minutes > 0 else f"{eta_secs}s"
+                    else:
+                        eta_str = "calculating..."
+                    
+                    # Print progress - flush immediately
+                    print(f"{completed}/{len(emails)} - {percentage:.1f}% | Valid: {len(valid_emails)} | Invalid: {len(invalid_emails)} | Speed: {speed:.1f}/sec | ETA: {eta_str}", flush=True)
+                    last_update = current_time
     
-    # Print newline after progress completes
     print()
-    
     elapsed_time = time.time() - start_time
     
     # Write results to files
