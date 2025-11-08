@@ -6,7 +6,7 @@ import sys
 import os
 
 # Configuration
-CONCURRENT_JOBS = 10  # Change this to control parallelism
+CONCURRENT_JOBS = 1000  # Change this to control parallelism
 
 # File paths
 DISPOSABLE_DOMAINS_FILE = "data/disposable_domains.txt"
