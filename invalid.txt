@@ -1,0 +1,9 @@
+@nodomain.com | Invalid Local Part: The part before the '@' sign cannot be empty.
+test@guerrillamail.com | Disposable email domain
+user@[192.168.1.1] | Invalid Domain: A bracketed IP address after the '@' sign is not permitted.
+user@10minutemail.com | Disposable email domain
+invalid-email | Invalid Email Address: Missing an '@' sign.
+test@example.com | Invalid Domain: The domain does not accept email due to a null MX record, indicating it is not co...
+user..name@domain.com | Invalid Email Address: Two periods ('.') cannot be adjacent in the email address.
+"quoted user"@example.com | Invalid Local Part: Quoting the local part before the '@' sign is not permitted in this context.
+test@mailinator.com | Disposable email domain

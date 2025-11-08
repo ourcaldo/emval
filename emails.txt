@@ -1,0 +1,20 @@
+john.doe@gmail.com
+test@example.com
+user@yahoo.com
+invalid-email
+admin@tempmail.com
+contact@microsoft.com
+user@10minutemail.com
+support@amazon.com
+user..name@domain.com
+@nodomain.com
+user@[192.168.1.1]
+info@apple.com
+test@guerrillamail.com
+user@outlook.com
+"quoted user"@example.com
+user@disposable.com
+admin@google.com
+test@mailinator.com
+user@hotmail.com
+contact@facebook.com
