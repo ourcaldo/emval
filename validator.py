@@ -146,7 +146,6 @@ def main():
     invalid_emails = []
     
     start_time = time.time()
-    last_update = start_time
     
     # Process in batches to avoid memory issues with large email lists
     completed = 0
@@ -174,32 +173,24 @@ def main():
                 else:
                     invalid_emails.append((email, reason))
                 
-                # Show progress every 10 emails or every 3 seconds
+                # Calculate and show real-time progress on same line
                 current_time = time.time()
-                should_update = (
-                    completed % 10 == 0 or 
-                    completed == len(emails) or
-                    (current_time - last_update) >= 3.0
-                )
+                percentage = (completed * 100.0) / len(emails)
+                elapsed = current_time - start_time
+                speed = completed / elapsed if elapsed > 0 else 0
                 
-                if should_update:
-                    percentage = (completed * 100.0) / len(emails)
-                    elapsed = current_time - start_time
-                    speed = completed / elapsed if elapsed > 0 else 0
-                    
-                    # Calculate ETA
-                    if speed > 0:
-                        remaining = len(emails) - completed
-                        eta_seconds = remaining / speed
-                        eta_minutes = int(eta_seconds // 60)
-                        eta_secs = int(eta_seconds % 60)
-                        eta_str = f"{eta_minutes}m {eta_secs}s" if eta_minutes > 0 else f"{eta_secs}s"
-                    else:
-                        eta_str = "calculating..."
-                    
-                    # Print progress - flush immediately
-                    print(f"{completed}/{len(emails)} - {percentage:.1f}% | Valid: {len(valid_emails)} | Invalid: {len(invalid_emails)} | Speed: {speed:.1f}/sec | ETA: {eta_str}", flush=True)
-                    last_update = current_time
+                # Calculate ETA
+                if speed > 0:
+                    remaining = len(emails) - completed
+                    eta_seconds = remaining / speed
+                    eta_minutes = int(eta_seconds // 60)
+                    eta_secs = int(eta_seconds % 60)
+                    eta_str = f"{eta_minutes}m {eta_secs}s" if eta_minutes > 0 else f"{eta_secs}s"
+                else:
+                    eta_str = "calculating..."
+                
+                # Print progress on same line with carriage return
+                print(f"{completed}/{len(emails)} - {percentage:.1f}% | Valid: {len(valid_emails)} | Invalid: {len(invalid_emails)} | Speed: {speed:.1f}/sec | ETA: {eta_str}", end='\r', flush=True)
     
     print()
     elapsed_time = time.time() - start_time
