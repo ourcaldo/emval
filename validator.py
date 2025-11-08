@@ -16,18 +16,18 @@ INVALID_OUTPUT = "output/invalid.txt"
 
 def load_disposable_domains() -> Set[str]:
     """Load disposable email domains from local file."""
-    print("📥 Loading disposable email domains list...")
+    print("Loading disposable email domains list...")
     try:
         with open(DISPOSABLE_DOMAINS_FILE, 'r', encoding='utf-8') as f:
             domains = set(line.strip().lower() for line in f if line.strip())
-        print(f"✅ Loaded {len(domains)} disposable domains\n")
+        print(f"Loaded {len(domains)} disposable domains\n")
         return domains
     except FileNotFoundError:
-        print(f"⚠️  Warning: {DISPOSABLE_DOMAINS_FILE} not found!")
+        print(f"Warning: {DISPOSABLE_DOMAINS_FILE} not found!")
         print("Continuing without disposable domain checking...\n")
         return set()
     except Exception as e:
-        print(f"⚠️  Warning: Could not load disposable domains: {e}")
+        print(f"Warning: Could not load disposable domains: {e}")
         print("Continuing without disposable domain checking...\n")
         return set()
 
@@ -75,10 +75,10 @@ def read_emails(filename: str) -> List[str]:
     try:
         with open(filename, 'r', encoding='utf-8') as f:
             emails = [line.strip() for line in f if line.strip()]
-        print(f"📧 Loaded {len(emails)} emails from {filename}\n")
+        print(f"Loaded {len(emails)} emails from {filename}\n")
         return emails
     except FileNotFoundError:
-        print(f"❌ Error: File '{filename}' not found!")
+        print(f"Error: File '{filename}' not found!")
         print(f"Please create {filename} with one email per line.\n")
         return []
 
@@ -95,13 +95,13 @@ def write_results(valid_emails: List[Tuple[str, str]], invalid_emails: List[Tupl
         for email, reason in invalid_emails:
             f.write(f"{email} | {reason}\n")
     
-    print(f"\n✅ Valid emails saved to: {VALID_OUTPUT}")
-    print(f"❌ Invalid emails saved to: {INVALID_OUTPUT}")
+    print(f"\nValid emails saved to: {VALID_OUTPUT}")
+    print(f"Invalid emails saved to: {INVALID_OUTPUT}")
 
 
 def main():
     print("="*70)
-    print("📬 BULK EMAIL VALIDATOR")
+    print("BULK EMAIL VALIDATOR")
     print("="*70)
     print(f"Concurrent Jobs: {CONCURRENT_JOBS}\n")
     
@@ -114,7 +114,7 @@ def main():
         deliverable_address=True,
         allowed_special_domains=[]
     )
-    print("✅ Validator configured:")
+    print("Validator configured:")
     print("   - No Unicode characters")
     print("   - No empty local parts")
     print("   - No quoted strings")
@@ -131,7 +131,7 @@ def main():
         return
     
     # Validate emails concurrently
-    print(f"🔄 Validating {len(emails)} emails with {CONCURRENT_JOBS} concurrent jobs...")
+    print(f"Validating {len(emails)} emails with {CONCURRENT_JOBS} concurrent jobs...")
     
     valid_emails = []
     invalid_emails = []
@@ -153,10 +153,8 @@ def main():
             
             if is_valid:
                 valid_emails.append((email, reason))
-                status = "✅"
             else:
                 invalid_emails.append((email, reason))
-                status = "❌"
             
             # Dynamic progress indicator - updates on the same line
             percentage = (completed * 100) // len(emails)
@@ -164,7 +162,7 @@ def main():
             speed = completed / elapsed if elapsed > 0 else 0
             
             # Use \r to return to start of line and overwrite previous output
-            sys.stdout.write(f"\r🔄 Progress: {completed}/{len(emails)} - {percentage}% | ⚡ {speed:.1f} emails/sec | ⏱️  {elapsed:.1f}s")
+            sys.stdout.write(f"\rProgress: {completed}/{len(emails)} - {percentage}% | {speed:.1f} emails/sec | {elapsed:.1f}s")
             sys.stdout.flush()
     
     # Print newline after progress completes
@@ -177,13 +175,13 @@ def main():
     
     # Summary
     print("\n" + "="*70)
-    print("📊 VALIDATION SUMMARY")
+    print("VALIDATION SUMMARY")
     print("="*70)
     print(f"Total Emails:     {len(emails)}")
-    print(f"✅ Valid:         {len(valid_emails)}")
-    print(f"❌ Invalid:       {len(invalid_emails)}")
-    print(f"⏱️  Time Taken:    {elapsed_time:.2f} seconds")
-    print(f"⚡ Speed:          {len(emails)/elapsed_time:.2f} emails/second")
+    print(f"Valid:            {len(valid_emails)}")
+    print(f"Invalid:          {len(invalid_emails)}")
+    print(f"Time Taken:       {elapsed_time:.2f} seconds")
+    print(f"Speed:            {len(emails)/elapsed_time:.2f} emails/second")
     print("="*70)
 
 
