@@ -20,16 +20,19 @@ Command-line application (CLI tool)
 - **Concurrency**: ThreadPoolExecutor for parallel validation
 
 ## File Structure
-- `bulk_email_validator.py` - Main validation script
-- `emails.txt` - Input file containing emails to validate (one per line)
-- `disposable_domains.txt` - Blocklist of 4,765+ disposable email domains
-- `valid_list.txt` - Output file for valid emails (generated)
-- `invalid.txt` - Output file for invalid emails with reasons (generated)
+- `validator.py` - Main validation script
+- `data/emails.txt` - Input file containing emails to validate (one per line)
+- `data/disposable_domains.txt` - Blocklist of 4,765+ disposable email domains
+- `output/valid_list.txt` - Output file for valid emails (generated)
+- `output/invalid.txt` - Output file for invalid emails with reasons (generated)
+- `requirements.txt` - Python dependencies (emval)
 
 ## How to Use
-1. Add email addresses to `emails.txt` (one email per line)
-2. Run the workflow or execute: `python bulk_email_validator.py`
-3. Check results in `valid_list.txt` (valid emails) and `invalid.txt` (invalid with reasons)
+1. Add email addresses to `data/emails.txt` (one email per line)
+2. Run the workflow or execute: `python validator.py`
+3. Check results in the `output/` directory:
+   - `output/valid_list.txt` - Valid emails
+   - `output/invalid.txt` - Invalid emails with reasons
 
 ## Configuration
 The validator uses strict validation settings configured in the script:
@@ -43,6 +46,13 @@ The validator uses strict validation settings configured in the script:
 Adjust `CONCURRENT_JOBS` variable (default: 10) to control parallelism based on your needs.
 
 ## Recent Changes
+- **2025-11-08**: Project enhancements
+  - Restructured project with `data/` and `output/` directories for better organization
+  - Enhanced progress display to show dynamic real-time updates on the same line
+  - Added live statistics: progress percentage, speed (emails/sec), and elapsed time
+  - Created requirements.txt for easy dependency installation
+  - Renamed main script from `bulk_email_validator.py` to `validator.py`
+  - Updated README with proper credits to emval library
 - **2025-11-08**: Initial project setup in Replit environment
   - Installed Python 3.11 and emval dependency
   - Created .gitignore for Python projects

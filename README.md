@@ -22,14 +22,14 @@ pip install -r requirements.txt
 
 ### Usage
 
-1. Add email addresses to `emails.txt` (one email per line)
+1. Add email addresses to `data/emails.txt` (one email per line)
 2. Run the validator:
 ```bash
 python validator.py
 ```
-3. Check the results:
-   - `valid_list.txt` - All valid email addresses
-   - `invalid.txt` - Invalid emails with detailed error reasons
+3. Check the results in the `output/` directory:
+   - `output/valid_list.txt` - All valid email addresses
+   - `output/invalid.txt` - Invalid emails with detailed error reasons
 
 ## ⚙️ Configuration
 
@@ -57,24 +57,26 @@ Adjust the `CONCURRENT_JOBS` variable in `validator.py` to control parallel proc
 ```
 .
 ├── validator.py                # Main validation script
-├── emails.txt                  # Input file (one email per line)
-├── disposable_domains.txt      # Blocklist of 4,765+ disposable domains
-├── valid_list.txt              # Output: Valid emails (generated)
-├── invalid.txt                 # Output: Invalid emails with reasons (generated)
 ├── requirements.txt            # Python dependencies
+├── data/                       # Input files directory
+│   ├── emails.txt              # Input: Email addresses to validate (one per line)
+│   └── disposable_domains.txt  # Blocklist of 4,765+ disposable domains
+├── output/                     # Output files directory
+│   ├── valid_list.txt          # Output: Valid emails (generated)
+│   └── invalid.txt             # Output: Invalid emails with reasons (generated)
 └── README.md                   # Documentation
 ```
 
 ## 📤 Output Format
 
-### valid_list.txt
+### output/valid_list.txt
 ```
 john.doe@gmail.com
 user@example.com
 alice@company.co.uk
 ```
 
-### invalid.txt
+### output/invalid.txt
 ```
 test@invalid-domain.xyz | Invalid Domain: The domain does not accept email...
 admin@tempmail.com | Disposable email domain
@@ -84,7 +86,7 @@ user@123.456.789.0 | IP addresses not allowed as domains
 
 ## 📊 Example Output
 
-**Input** (`emails.txt`):
+**Input** (`data/emails.txt`):
 ```
 john.doe@gmail.com
 test@tempmail.com
@@ -103,14 +105,13 @@ Concurrent Jobs: 10
 📥 Loading disposable email domains list...
 ✅ Loaded 4765 disposable domains
 
-📧 Loaded 4 emails from emails.txt
+📧 Loaded 4 emails from data/emails.txt
 
 🔄 Validating 4 emails with 10 concurrent jobs...
+🔄 Progress: 4/4 - 100% | ⚡ 1.6 emails/sec | ⏱️  2.5s
 
-Progress: 4/4 (100%)
-
-✅ Valid emails saved to: valid_list.txt
-❌ Invalid emails saved to: invalid.txt
+✅ Valid emails saved to: output/valid_list.txt
+❌ Invalid emails saved to: output/invalid.txt
 
 ======================================================================
 📊 VALIDATION SUMMARY

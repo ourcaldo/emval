@@ -2,15 +2,16 @@ from emval import EmailValidator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Set, Tuple, List
 import time
+import sys
 
 # Configuration
 CONCURRENT_JOBS = 10  # Change this to control parallelism
 
 # File paths
-DISPOSABLE_DOMAINS_FILE = "disposable_domains.txt"
-INPUT_FILE = "emails.txt"
-VALID_OUTPUT = "valid_list.txt"
-INVALID_OUTPUT = "invalid.txt"
+DISPOSABLE_DOMAINS_FILE = "data/disposable_domains.txt"
+INPUT_FILE = "data/emails.txt"
+VALID_OUTPUT = "output/valid_list.txt"
+INVALID_OUTPUT = "output/invalid.txt"
 
 
 def load_disposable_domains() -> Set[str]:
@@ -130,7 +131,7 @@ def main():
         return
     
     # Validate emails concurrently
-    print(f"🔄 Validating {len(emails)} emails with {CONCURRENT_JOBS} concurrent jobs...\n")
+    print(f"🔄 Validating {len(emails)} emails with {CONCURRENT_JOBS} concurrent jobs...")
     
     valid_emails = []
     invalid_emails = []
@@ -157,9 +158,17 @@ def main():
                 invalid_emails.append((email, reason))
                 status = "❌"
             
-            # Progress indicator
-            if completed % 10 == 0 or completed == len(emails):
-                print(f"Progress: {completed}/{len(emails)} ({completed*100//len(emails)}%)")
+            # Dynamic progress indicator - updates on the same line
+            percentage = (completed * 100) // len(emails)
+            elapsed = time.time() - start_time
+            speed = completed / elapsed if elapsed > 0 else 0
+            
+            # Use \r to return to start of line and overwrite previous output
+            sys.stdout.write(f"\r🔄 Progress: {completed}/{len(emails)} - {percentage}% | ⚡ {speed:.1f} emails/sec | ⏱️  {elapsed:.1f}s")
+            sys.stdout.flush()
+    
+    # Print newline after progress completes
+    print()
     
     elapsed_time = time.time() - start_time
     
