@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Set, Tuple, List
 import time
 import sys
+import os
 
 # Configuration
 CONCURRENT_JOBS = 10  # Change this to control parallelism
@@ -85,6 +86,12 @@ def read_emails(filename: str) -> List[str]:
 
 def write_results(valid_emails: List[Tuple[str, str]], invalid_emails: List[Tuple[str, str]]):
     """Write validation results to output files."""
+    # Create output directory if it doesn't exist
+    output_dir = os.path.dirname(VALID_OUTPUT)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        print(f"Created output directory: {output_dir}")
+    
     # Write valid emails
     with open(VALID_OUTPUT, 'w', encoding='utf-8') as f:
         for email, _ in valid_emails:
