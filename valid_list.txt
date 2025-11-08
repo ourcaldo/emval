@@ -1,11 +1,11 @@
+user@outlook.com
+support@amazon.com
 user@yahoo.com
 info@apple.com
-contact@microsoft.com
 admin@google.com
+contact@microsoft.com
 user@disposable.com
 admin@tempmail.com
 john.doe@gmail.com
 user@hotmail.com
-user@outlook.com
-support@amazon.com
 contact@facebook.com

@@ -21,9 +21,9 @@ args = "Email Validator"
 name = "Email Validator"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python bulk_email_validator.py"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python validator.py"

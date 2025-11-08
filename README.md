@@ -1,74 +1,141 @@
 # 📬 Bulk Email Validator
 
-A high-performance bulk email validator using emval with disposable email detection.
+A high-performance bulk email validation tool with DNS verification and disposable email detection. Built with Python and powered by [emval](https://github.com/bnkc/emval).
 
-## Features
+## ✨ Features
 
-✅ Validates email syntax (RFC 5322 compliant)
-✅ DNS deliverability checks (MX records)
-✅ Disposable email domain blocking (4,765+ domains)
-✅ Concurrent processing for speed
-✅ Detailed error reporting
+- ✅ **RFC 5322 Compliant** - Validates email syntax according to official standards
+- 🌐 **DNS Deliverability Checks** - Verifies MX records to ensure domains can receive emails
+- 🚫 **Disposable Email Blocking** - Blocks 4,765+ known disposable email domains
+- ⚡ **Concurrent Processing** - Multi-threaded validation for maximum speed
+- 📊 **Detailed Reporting** - Clear error messages explaining why each email is invalid
 
-## Configuration
+## 🚀 Quick Start
 
-The validator uses strict settings:
-- `allow_smtputf8=False` - Only ASCII characters allowed
-- `allow_empty_local=False` - No empty local parts
-- `allow_quoted_local=False` - No quoted strings
-- `allow_domain_literal=False` - No IP addresses
-- `deliverable_address=True` - DNS checks enabled
-- `allowed_special_domains=[]` - No special domains
+### Installation
 
-## Files
+1. Clone this repository
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-- `bulk_email_validator.py` - Main script
-- `emails.txt` - Input file (one email per line)
-- `disposable_domains.txt` - Blocklist of disposable domains
-- `valid_list.txt` - Output: valid emails
-- `invalid.txt` - Output: invalid emails with reasons
+### Usage
 
-## Usage
+1. Add email addresses to `emails.txt` (one email per line)
+2. Run the validator:
+```bash
+python validator.py
+```
+3. Check the results:
+   - `valid_list.txt` - All valid email addresses
+   - `invalid.txt` - Invalid emails with detailed error reasons
 
-1. Add your emails to `emails.txt` (one per line)
-2. Adjust `CONCURRENT_JOBS` in the script (default: 10)
-3. Run: `python bulk_email_validator.py`
+## ⚙️ Configuration
 
-## Performance
+The validator uses strict validation settings configured in `validator.py`:
 
-The script uses ThreadPoolExecutor for concurrent validation.
-Adjust `CONCURRENT_JOBS` based on your needs:
-- Low: 5 jobs (safer, slower)
-- Medium: 10 jobs (balanced)
-- High: 20 jobs (faster, more DNS queries)
+| Setting | Value | Description |
+|---------|-------|-------------|
+| `allow_smtputf8` | `False` | Only ASCII characters allowed (no Unicode) |
+| `allow_empty_local` | `False` | No empty local parts |
+| `allow_quoted_local` | `False` | No quoted strings in email addresses |
+| `allow_domain_literal` | `False` | No IP addresses as domains |
+| `deliverable_address` | `True` | DNS deliverability checks enabled |
+| `allowed_special_domains` | `[]` | No special domains allowed |
 
-## Output Format
+### Performance Tuning
 
-**valid_list.txt:**
+Adjust the `CONCURRENT_JOBS` variable in `validator.py` to control parallel processing:
+
+- **Low** (5 jobs): Safer, slower - recommended for rate-limited networks
+- **Medium** (10 jobs): Balanced - default setting
+- **High** (20 jobs): Faster, more DNS queries - use on high-bandwidth connections
+
+## 📁 Project Structure
+
+```
+.
+├── validator.py                # Main validation script
+├── emails.txt                  # Input file (one email per line)
+├── disposable_domains.txt      # Blocklist of 4,765+ disposable domains
+├── valid_list.txt              # Output: Valid emails (generated)
+├── invalid.txt                 # Output: Invalid emails with reasons (generated)
+├── requirements.txt            # Python dependencies
+└── README.md                   # Documentation
+```
+
+## 📤 Output Format
+
+### valid_list.txt
 ```
 john.doe@gmail.com
-user@yahoo.com
+user@example.com
+alice@company.co.uk
 ```
 
-**invalid.txt:**
+### invalid.txt
 ```
-test@example.com | Invalid Domain: The domain does not accept email...
+test@invalid-domain.xyz | Invalid Domain: The domain does not accept email...
 admin@tempmail.com | Disposable email domain
 invalid-email | Invalid Email Address: Missing an '@' sign.
+user@123.456.789.0 | IP addresses not allowed as domains
 ```
 
-## Example
+## 📊 Example Output
 
-Input (emails.txt):
+**Input** (`emails.txt`):
 ```
 john.doe@gmail.com
 test@tempmail.com
 invalid-email
+alice@example.com
 ```
 
-Output:
+**Console Output**:
 ```
-Total Emails:     3
-✅ Valid:         1
+======================================================================
+📬 BULK EMAIL VALIDATOR
+======================================================================
+Concurrent Jobs: 10
+
+✅ Validator configured
+📥 Loading disposable email domains list...
+✅ Loaded 4765 disposable domains
+
+📧 Loaded 4 emails from emails.txt
+
+🔄 Validating 4 emails with 10 concurrent jobs...
+
+Progress: 4/4 (100%)
+
+✅ Valid emails saved to: valid_list.txt
+❌ Invalid emails saved to: invalid.txt
+
+======================================================================
+📊 VALIDATION SUMMARY
+======================================================================
+Total Emails:     4
+✅ Valid:         2
 ❌ Invalid:       2
+⏱️  Time Taken:    2.45 seconds
+⚡ Speed:          1.63 emails/second
+======================================================================
 ```
+
+## 🛠️ Requirements
+
+- Python 3.11+
+- emval==0.1.11
+
+## 📝 Credits
+
+This project is powered by [**emval**](https://github.com/bnkc/emval) - a robust Python email validation library created by [@bnkc](https://github.com/bnkc). Emval provides comprehensive email validation with DNS checks, syntax validation, and deliverability verification.
+
+## 📄 License
+
+This project uses emval which is available under its own license. Please refer to the [emval repository](https://github.com/bnkc/emval) for more information.
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
