@@ -149,6 +149,7 @@ class EmailIOHandler:
     ) -> Tuple[int, int]:
         """
         Write valid emails to domain-specific files (email only, no reason).
+        Uses append mode to preserve existing results.
         
         Args:
             valid_emails: List of valid email tuples
@@ -174,41 +175,77 @@ class EmailIOHandler:
                 logger.warning(f"Malformed valid email: {email}")
                 continue
         
-        # Write well-known domain files (email only)
+        # Write well-known domain files (email only) in append mode
         for domain, emails in well_known_emails.items():
             safe_domain = self.sanitize_domain_filename(domain)
             domain_file = os.path.join(self.valid_output_dir, f"{safe_domain}.txt")
             
             try:
-                with open(domain_file, 'w', encoding='utf-8') as f:
-                    for email in sorted(emails):
-                        f.write(f"{email}\n")
-                logger.info(f"Wrote {len(emails)} emails to {domain_file}")
+                # Read existing emails to avoid duplicates
+                existing_emails = set()
+                if os.path.exists(domain_file):
+                    with open(domain_file, 'r', encoding='utf-8') as f:
+                        existing_emails = set(line.strip().lower() for line in f if line.strip())
+                
+                # Only write new emails
+                new_emails = [e for e in sorted(emails) if e.lower() not in existing_emails]
+                
+                if new_emails:
+                    with open(domain_file, 'a', encoding='utf-8') as f:
+                        for email in new_emails:
+                            f.write(f"{email}\n")
+                    logger.info(f"Appended {len(new_emails)} new emails to {domain_file}")
+                else:
+                    logger.info(f"No new emails to append to {domain_file}")
             except Exception as e:
                 logger.error(f"Error writing to {domain_file}: {e}")
         
-        # Write other emails (email only)
+        # Write other emails (email only) in append mode
         other_count = 0
         if other_emails:
             other_file = os.path.join(self.valid_output_dir, "other.txt")
             try:
-                with open(other_file, 'w', encoding='utf-8') as f:
-                    for email in sorted(other_emails):
-                        f.write(f"{email}\n")
-                other_count = len(other_emails)
-                logger.info(f"Wrote {len(other_emails)} emails to {other_file}")
+                # Read existing emails to avoid duplicates
+                existing_emails = set()
+                if os.path.exists(other_file):
+                    with open(other_file, 'r', encoding='utf-8') as f:
+                        existing_emails = set(line.strip().lower() for line in f if line.strip())
+                
+                # Only write new emails
+                new_emails = [e for e in sorted(other_emails) if e.lower() not in existing_emails]
+                
+                if new_emails:
+                    with open(other_file, 'a', encoding='utf-8') as f:
+                        for email in new_emails:
+                            f.write(f"{email}\n")
+                    other_count = len(new_emails)
+                    logger.info(f"Appended {len(new_emails)} new emails to {other_file}")
+                else:
+                    logger.info(f"No new emails to append to {other_file}")
             except Exception as e:
                 logger.error(f"Error writing to {other_file}: {e}")
         
         return len(well_known_emails), other_count
     
     def _write_invalid_emails(self, invalid_emails: List[Tuple[str, str, str]]):
-        """Write invalid emails to file (email only, no reason)."""
+        """Write invalid emails to file (email only, no reason) in append mode."""
         try:
-            with open(self.invalid_output, 'w', encoding='utf-8') as f:
-                for email, _, _ in invalid_emails:
-                    f.write(f"{email}\n")
-            logger.info(f"Wrote {len(invalid_emails)} invalid emails to {self.invalid_output}")
+            # Read existing emails to avoid duplicates
+            existing_emails = set()
+            if os.path.exists(self.invalid_output):
+                with open(self.invalid_output, 'r', encoding='utf-8') as f:
+                    existing_emails = set(line.strip().lower() for line in f if line.strip())
+            
+            # Only write new emails
+            new_emails = [email for email, _, _ in invalid_emails if email.lower() not in existing_emails]
+            
+            if new_emails:
+                with open(self.invalid_output, 'a', encoding='utf-8') as f:
+                    for email in new_emails:
+                        f.write(f"{email}\n")
+                logger.info(f"Appended {len(new_emails)} new invalid emails to {self.invalid_output}")
+            else:
+                logger.info(f"No new invalid emails to append to {self.invalid_output}")
         except Exception as e:
             logger.error(f"Error writing to {self.invalid_output}: {e}")
     

@@ -67,6 +67,8 @@ class EmailSyntaxValidator:
             allow_quoted_local: Allow quoted local parts (e.g., "user name"@domain.com)
             allow_domain_literal: Allow domain literals (e.g., [192.168.0.1])
             allowed_special_domains: List of special-use domains to allow
+        
+        Note: Plus-addressing validation is now handled at the service layer with provider-aware logic.
         """
         self.allow_smtputf8 = allow_smtputf8
         self.allow_empty_local = allow_empty_local
@@ -177,6 +179,9 @@ class EmailSyntaxValidator:
     def _validate_dot_atom_local(self, local: str) -> Tuple[bool, str]:
         """
         Validate local part as dot-atom format.
+        
+        Note: Plus-addressing validation is now handled at the service layer
+        with provider-aware logic (rejected only for Gmail/Google domains).
         
         Args:
             local: Local part

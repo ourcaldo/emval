@@ -13,7 +13,14 @@ class EmailValidationService:
     """
     Main email validation service with retry logic and error categorization.
     Uses self-hosted email syntax validation and HTTP-based DNS checking.
+    
+    Plus-addressing is provider-aware:
+    - Rejected for Gmail/Google domains (gmail.com, googlemail.com, google.com)
+    - Allowed for all other domains
     """
+    
+    # Gmail/Google domains where plus-addressing is not allowed
+    GMAIL_DOMAINS = {'gmail.com', 'googlemail.com', 'google.com'}
     
     def __init__(
         self,
@@ -42,6 +49,8 @@ class EmailValidationService:
             allow_domain_literal: Allow IP addresses as domains
             deliverable_address: Enable DNS deliverability checks
             allowed_special_domains: List of special-use domains to allow
+        
+        Note: Plus-addressing is handled with provider-aware logic (rejected only for Gmail/Google).
         """
         self.disposable_checker = disposable_checker
         self.dns_checker = dns_checker
@@ -49,7 +58,7 @@ class EmailValidationService:
         self.retry_delay = retry_delay
         self.deliverable_address = deliverable_address
         
-        # Initialize syntax validator
+        # Initialize syntax validator (without plus-addressing parameter)
         self.syntax_validator = EmailSyntaxValidator(
             allow_smtputf8=allow_smtputf8,
             allow_empty_local=allow_empty_local,
@@ -60,10 +69,16 @@ class EmailValidationService:
         
         logger.info("EmailValidationService initialized")
         logger.info(f"Retry attempts: {retry_attempts}, Retry delay: {retry_delay}s")
+        logger.info(f"Plus-addressing: Rejected for {self.GMAIL_DOMAINS}, allowed for other domains")
     
     def validate(self, email: str) -> Tuple[str, bool, str, str]:
         """
         Validate a single email address with retry logic.
+        Email is normalized to lowercase for consistency.
+        
+        Plus-addressing validation is provider-aware:
+        - user+tag@gmail.com -> INVALID (Gmail doesn't support plus-addressing for validation)
+        - user+tag@otherdomain.com -> VALID (other domains allow plus-addressing)
         
         Args:
             email: Email address to validate
@@ -72,7 +87,7 @@ class EmailValidationService:
             Tuple of (email, is_valid, reason, error_category)
             error_category: 'syntax', 'disposable', 'dns', 'valid'
         """
-        email = email.strip()
+        email = email.strip().lower()  # Normalize to lowercase
         
         # Check for empty email
         if not email:
@@ -85,12 +100,20 @@ class EmailValidationService:
             logger.debug(f"Invalid email syntax: {email} - {syntax_error}")
             return (email, False, syntax_error, "syntax")
         
-        # Step 2: Check if disposable
+        # Step 2: Provider-aware plus-addressing check
+        # Reject plus-addressing ONLY for Gmail/Google domains
+        if '+' in email:
+            domain = self.syntax_validator.extract_domain(email)
+            if domain and domain in self.GMAIL_DOMAINS:
+                logger.debug(f"Plus-addressing rejected for Gmail/Google domain: {email}")
+                return (email, False, "Plus-addressing not allowed for Gmail/Google domains", "syntax")
+        
+        # Step 3: Check if disposable
         if self.disposable_checker.is_disposable(email):
             logger.debug(f"Disposable email rejected: {email}")
             return (email, False, "Disposable email domain", "disposable")
         
-        # Step 3: Check DNS deliverability (if enabled)
+        # Step 4: Check DNS deliverability (if enabled)
         if self.deliverable_address:
             # Extract domain
             domain = self.syntax_validator.extract_domain(email)

@@ -45,6 +45,7 @@ class DisposableDomainChecker:
     def is_disposable(self, email: str) -> bool:
         """
         Check if email domain is disposable.
+        Also checks parent domains (e.g., subdomain.tempmail.com matches tempmail.com).
         
         Args:
             email: Email address to check
@@ -57,10 +58,22 @@ class DisposableDomainChecker:
         
         try:
             domain = email.split('@')[1].lower()
-            is_disp = domain in self.disposable_domains
-            if is_disp:
-                logger.debug(f"Disposable domain detected: {domain}")
-            return is_disp
+            
+            # Check exact match first
+            if domain in self.disposable_domains:
+                logger.debug(f"Disposable domain detected (exact match): {domain}")
+                return True
+            
+            # Check parent domains (subdomain matching)
+            # e.g., if "tempmail.com" is disposable, "subdomain.tempmail.com" should also be blocked
+            parts = domain.split('.')
+            for i in range(len(parts)):
+                parent_domain = '.'.join(parts[i:])
+                if parent_domain in self.disposable_domains:
+                    logger.debug(f"Disposable domain detected (parent match): {domain} -> {parent_domain}")
+                    return True
+            
+            return False
         except (IndexError, AttributeError):
             logger.debug(f"Invalid email format for disposable check: {email}")
             return False

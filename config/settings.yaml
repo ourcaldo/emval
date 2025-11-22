@@ -31,6 +31,10 @@ validation:
   allow_domain_literal: false  # Allow IP addresses as domains
   deliverable_address: true    # Enable DNS deliverability checks
   allowed_special_domains: []  # List of special-use domains to allow (e.g., ['test', 'localhost'])
+  
+  # Note: Plus-addressing is now handled with provider-aware logic:
+  # - Rejected for Gmail/Google domains (gmail.com, googlemail.com, google.com)
+  # - Allowed for all other domains
 
 # File Paths
 paths:

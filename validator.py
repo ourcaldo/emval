@@ -152,6 +152,7 @@ def main():
     print(f"   - Empty local parts: {'Allowed' if validation_config.get('allow_empty_local') else 'Not allowed'}")
     print(f"   - Quoted strings: {'Allowed' if validation_config.get('allow_quoted_local') else 'Not allowed'}")
     print(f"   - IP addresses: {'Allowed' if validation_config.get('allow_domain_literal') else 'Not allowed'}")
+    print(f"   - Plus-addressing: Provider-aware (rejected for Gmail/Google, allowed for others)")
     print(f"   - DNS deliverability: {'Enabled' if validation_config.get('deliverable_address') else 'Disabled'}")
     print(f"   - Retry attempts: {retry_config.get('attempts', 3)}")
     print(f"   - DNS caching: Enabled (max {dns_cache_config.get('max_size', 10000)} domains)")
