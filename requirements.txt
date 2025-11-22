@@ -1,3 +1,2 @@
 emval==0.1.11
-emval
-pyyaml
+pyyaml>=6.0

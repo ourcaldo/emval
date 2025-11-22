@@ -1,0 +1,40 @@
+# Email Validator Configuration File
+# All settings can be customized here instead of hardcoding in source
+
+# Concurrent Processing Settings
+concurrency:
+  max_workers: 1000  # Number of concurrent validation jobs
+  batch_size: 1000   # Number of emails to process per batch
+
+# Retry Configuration
+retry:
+  attempts: 3        # Number of retry attempts for DNS failures
+  delay: 0.5         # Delay between retries in seconds
+
+# DNS Cache Settings
+dns_cache:
+  max_size: 10000    # Maximum number of domains to cache
+
+# Email Validator Rules
+validation:
+  allow_smtputf8: false        # Allow Unicode characters in emails
+  allow_empty_local: false     # Allow empty local parts
+  allow_quoted_local: false    # Allow quoted strings
+  allow_domain_literal: false  # Allow IP addresses as domains
+  deliverable_address: true    # Enable DNS deliverability checks
+
+# File Paths
+paths:
+  disposable_domains: "data/disposable_domains.txt"
+  well_known_domains: "config/well_known_domains.txt"
+  input_file: "data/emails.txt"
+  valid_output_dir: "output/valid"
+  invalid_output: "output/invalid.txt"
+  summary_output: "output/SUMMARY.txt"
+  log_file: "validator.log"
+
+# Logging Configuration
+logging:
+  level: "INFO"      # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  console_output: true  # Whether to also log to console
