@@ -28,7 +28,7 @@ pip install -r requirements.txt
 python validator.py
 ```
 3. Check the results in the `output/` directory:
-   - `output/valid_list.txt` - All valid email addresses
+   - `output/valid/` - Valid emails organized by domain (one file per domain)
    - `output/invalid.txt` - Invalid emails with detailed error reasons
 
 ## ⚙️ Configuration
@@ -62,19 +62,35 @@ Adjust the `CONCURRENT_JOBS` variable in `validator.py` to control parallel proc
 │   ├── emails.txt              # Input: Email addresses to validate (one per line)
 │   └── disposable_domains.txt  # Blocklist of 4,765+ disposable domains
 ├── output/                     # Output files directory
-│   ├── valid_list.txt          # Output: Valid emails (generated)
-│   └── invalid.txt             # Output: Invalid emails with reasons (generated)
+│   ├── valid/                  # Valid emails organized by domain (generated)
+│   │   ├── gmail.com.txt       # Example: All Gmail addresses
+│   │   ├── yahoo.com.txt       # Example: All Yahoo addresses
+│   │   └── ...                 # One file per domain
+│   └── invalid.txt             # Invalid emails with reasons (generated)
 └── README.md                   # Documentation
 ```
 
 ## 📤 Output Format
 
-### output/valid_list.txt
+### output/valid/ (Directory)
+Valid emails are automatically organized by domain into separate files:
+
+**output/valid/gmail.com.txt:**
 ```
 john.doe@gmail.com
-user@example.com
-alice@company.co.uk
+jane.smith@gmail.com
 ```
+
+**output/valid/company.co.uk.txt:**
+```
+alice@company.co.uk
+bob@company.co.uk
+```
+
+This organization makes it easy to:
+- Process emails by provider
+- Send bulk emails to specific domains
+- Analyze email distribution across domains
 
 ### output/invalid.txt
 ```
@@ -110,7 +126,7 @@ Concurrent Jobs: 10
 🔄 Validating 4 emails with 10 concurrent jobs...
 🔄 Progress: 4/4 - 100% | ⚡ 1.6 emails/sec | ⏱️  2.5s
 
-✅ Valid emails saved to: output/valid_list.txt
+✅ Valid emails saved to: output/valid/
 ❌ Invalid emails saved to: output/invalid.txt
 
 ======================================================================
