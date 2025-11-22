@@ -1,0 +1,38 @@
+======================================================================
+EMAIL VALIDATION SUMMARY REPORT
+======================================================================
+Generated: 2025-11-22 06:18:17
+
+OVERALL STATISTICS
+----------------------------------------------------------------------
+Total Emails Processed:     19
+Valid Emails:               12 (63.2%)
+Invalid Emails:             7 (36.8%)
+Processing Time:            40.25 seconds
+Processing Speed:           0.47 emails/second
+
+VALID EMAILS BY DOMAIN
+----------------------------------------------------------------------
+  facebook.com                                    1 emails
+  google.com                                      1 emails
+  yahoo.com                                       1 emails
+  gmail.com                                       1 emails
+  outlook.com                                     1 emails
+  Other domains (other.txt)                       7 emails
+
+  TOTAL VALID                                    12 emails
+
+INVALID EMAILS BY CATEGORY
+----------------------------------------------------------------------
+  Syntax                                          5 emails
+  Disposable                                      2 emails
+
+  TOTAL INVALID                                   7 emails
+
+OUTPUT FILES
+----------------------------------------------------------------------
+Valid emails (well-known):  output/valid/<domain>.txt
+Valid emails (other):       output/valid/other.txt
+Invalid emails:             output/invalid.txt
+Log file:                   validator.log
+======================================================================
