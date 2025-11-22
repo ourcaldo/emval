@@ -1,11 +1,12 @@
 # 📬 Bulk Email Validator
 
-A high-performance, modular bulk email validation tool with DNS verification, disposable email detection, and automatic deduplication. Built with Python and powered by [emval](https://github.com/bnkc/emval).
+A high-performance, self-hosted bulk email validation tool with HTTP DNS API, disposable email detection, and automatic deduplication. Built entirely in Python with no external validation dependencies.
 
 ## ✨ Features
 
-- ✅ **RFC 5322 Compliant** - Validates email syntax according to official standards
-- 🌐 **DNS Deliverability Checks** - Verifies MX records with retry logic (3 attempts)
+- ✅ **RFC 5322 Compliant** - Self-hosted email syntax validation following official standards
+- 🌐 **HTTP DNS API** - Uses networkcalc.com API for MX record verification with retry logic
+- 🔒 **Proxy Support** - Optional proxy configuration for API requests
 - 🚫 **Disposable Email Blocking** - Blocks 4,765+ known disposable email domains
 - ⚡ **Concurrent Processing** - Multi-threaded validation for maximum speed
 - 🧩 **Modular Architecture** - Clean separation of concerns for easy testing and maintenance
@@ -13,6 +14,7 @@ A high-performance, modular bulk email validation tool with DNS verification, di
 - 💾 **DNS Caching** - LRU cache for faster validation (up to 10,000 domains)
 - 📂 **Well-Known Domain Separation** - Organizes emails by 173+ popular email providers
 - ⚙️ **External Configuration** - All settings in config/settings.yaml
+- 🎛️ **Configurable Validation** - Control Unicode, quoted strings, IP addresses, and more
 
 ## 🚀 Quick Start
 
@@ -44,18 +46,28 @@ All settings are configurable in `config/settings.yaml`:
 ### Validation Rules
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `allow_smtputf8` | `false` | Only ASCII characters allowed (no Unicode) |
-| `allow_empty_local` | `false` | No empty local parts |
-| `allow_quoted_local` | `false` | No quoted strings in email addresses |
-| `allow_domain_literal` | `false` | No IP addresses as domains |
-| `deliverable_address` | `true` | DNS deliverability checks enabled |
+| `allow_smtputf8` | `false` | Allow Unicode/internationalized email addresses |
+| `allow_empty_local` | `false` | Allow empty local parts (@domain.com) |
+| `allow_quoted_local` | `false` | Allow quoted local parts ("user name"@domain.com) |
+| `allow_domain_literal` | `false` | Allow domain literals ([192.168.0.1]) |
+| `deliverable_address` | `true` | Enable HTTP DNS API deliverability checks |
+| `allowed_special_domains` | `[]` | List of special-use domains to allow (e.g., ['test', 'localhost']) |
+
+### Network Settings (HTTP DNS API)
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `network.timeout` | `10` | API request timeout in seconds |
+| `network.max_retries` | `3` | Maximum retry attempts for API requests |
+| `network.retry_delay` | `1.0` | Delay between retries (seconds) |
+| `network.rate_limit_delay` | `0.1` | Minimum delay between API requests |
+| `network.proxy` | `null` | Optional proxy configuration (http/https) |
 
 ### Performance Settings
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `max_workers` | `1000` | Number of concurrent validation jobs |
 | `batch_size` | `1000` | Emails processed per batch |
-| `retry.attempts` | `3` | Retry attempts for DNS failures |
+| `retry.attempts` | `3` | Retry attempts for validation failures |
 | `retry.delay` | `0.5` | Delay between retries (seconds) |
 | `dns_cache.max_size` | `10000` | Maximum domains to cache |
 
@@ -63,16 +75,17 @@ All settings are configurable in `config/settings.yaml`:
 
 ```
 .
-├── validator.py                  # Main entry point
-├── validators/                   # Modular validation package
-│   ├── __init__.py               # Package exports
-│   ├── core.py                   # Email validation service
-│   ├── dns_checker.py            # DNS verification with caching
-│   ├── disposable.py             # Disposable domain checker
-│   └── io_handler.py             # File I/O operations
-├── config/                       # Configuration files
-│   ├── settings.yaml             # Main configuration
-│   └── well_known_domains.txt    # 173 well-known email providers
+├── validator.py                   # Main entry point
+├── validators/                    # Modular validation package
+│   ├── __init__.py                # Package exports
+│   ├── core.py                    # Email validation service
+│   ├── syntax_validator.py        # Self-hosted RFC 5322 syntax validation
+│   ├── http_dns_checker.py        # HTTP DNS API with caching
+│   ├── disposable.py              # Disposable domain checker
+│   └── io_handler.py              # File I/O operations
+├── config/                        # Configuration files
+│   ├── settings.yaml              # Main configuration
+│   └── well_known_domains.txt     # 173 well-known email providers
 ├── data/                         # Input files directory
 │   ├── emails.txt                # Input: Email addresses (one per line)
 │   └── disposable_domains.txt    # Blocklist of 4,765+ disposable domains
@@ -216,22 +229,23 @@ The validator recognizes 173 popular email providers and creates separate files 
 
 ## 🛠️ Architecture
 
-The validator uses a modular architecture with clear separation of concerns:
+The validator uses a self-hosted modular architecture with clear separation of concerns:
 
 - **validator.py** - Main orchestrator, loads config and coordinates components
-- **EmailValidationService** - Core validation logic with retry mechanism
-- **DNSChecker** - DNS verification with LRU caching
+- **EmailSyntaxValidator** - Self-hosted RFC 5322 compliant syntax validation
+- **HTTPDNSChecker** - HTTP API-based DNS verification with LRU caching and proxy support
+- **EmailValidationService** - Core validation logic orchestrating syntax, disposable, and DNS checks
 - **DisposableDomainChecker** - Disposable domain detection
 - **EmailIOHandler** - File I/O and well-known domain separation
 
-All components are independently testable and loosely coupled.
+All components are independently testable and loosely coupled. No external validation libraries required.
 
 ## 🔧 Advanced Configuration
 
 Edit `config/settings.yaml` to customize behavior:
 
 ```yaml
-# Increase performance (careful: may overwhelm DNS)
+# Increase performance (API rate limits may apply)
 concurrency:
   max_workers: 2000
 
@@ -243,6 +257,18 @@ retry:
 # Larger DNS cache
 dns_cache:
   max_size: 50000
+
+# Add proxy for API requests
+network:
+  proxy:
+    http: "http://proxy-server:8080"
+    https: "https://proxy-server:8080"
+  timeout: 15
+  max_retries: 5
+
+# Allow special domains
+validation:
+  allowed_special_domains: ['localhost', 'test']
 ```
 
 ## 📝 Logging
@@ -262,8 +288,17 @@ logging:
 
 ## 🤝 Credits
 
-- Email validation powered by [emval](https://github.com/bnkc/emval)
+- Self-hosted email validation following RFC 5322 standards
+- DNS verification via [networkcalc.com API](https://networkcalc.com)
 - Disposable domain list from various open-source blocklists
+
+## 🔌 DNS API
+
+This validator uses the networkcalc.com DNS lookup API:
+- **Endpoint**: `https://networkcalc.com/api/dns/lookup/{hostname}`
+- **Features**: Returns A, CNAME, MX, NS, SOA, and TXT records
+- **Rate Limiting**: Configurable delay between requests
+- **Proxy Support**: Optional HTTP/HTTPS proxy configuration
 
 ## 📄 License
 

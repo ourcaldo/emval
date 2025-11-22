@@ -3,7 +3,7 @@ Core email validation logic module.
 """
 
 from .syntax_validator import EmailSyntaxValidator
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class EmailValidationService:
         allow_quoted_local: bool = False,
         allow_domain_literal: bool = False,
         deliverable_address: bool = True,
-        allowed_special_domains: List[str] = None
+        allowed_special_domains: Optional[List[str]] = None
     ):
         """
         Initialize email validation service.
