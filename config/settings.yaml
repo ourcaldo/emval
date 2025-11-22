@@ -15,6 +15,16 @@ retry:
 dns_cache:
   max_size: 10000    # Maximum number of domains to cache
 
+# Network Configuration (for HTTP DNS API)
+network:
+  timeout: 10               # Request timeout in seconds
+  max_retries: 3            # Maximum retry attempts for API requests
+  retry_delay: 1.0          # Delay between retries in seconds
+  rate_limit_delay: 0.1     # Minimum delay between API requests (to avoid rate limiting)
+  # proxy:                  # Optional proxy configuration (uncomment to use)
+  #   http: "http://proxy-server:8080"
+  #   https: "https://proxy-server:8080"
+
 # Email Validator Rules
 validation:
   allow_smtputf8: false        # Allow Unicode characters in emails
@@ -22,6 +32,7 @@ validation:
   allow_quoted_local: false    # Allow quoted strings
   allow_domain_literal: false  # Allow IP addresses as domains
   deliverable_address: true    # Enable DNS deliverability checks
+  allowed_special_domains: []  # List of special-use domains to allow (e.g., ['test', 'localhost'])
 
 # File Paths
 paths:

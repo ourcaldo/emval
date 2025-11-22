@@ -2,9 +2,8 @@
 Core email validation logic module.
 """
 
-from emval import EmailValidator
-from typing import Tuple
-import time
+from .syntax_validator import EmailSyntaxValidator
+from typing import Tuple, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,6 +12,7 @@ logger = logging.getLogger(__name__)
 class EmailValidationService:
     """
     Main email validation service with retry logic and error categorization.
+    Uses self-hosted email syntax validation and HTTP-based DNS checking.
     """
     
     def __init__(
@@ -25,14 +25,15 @@ class EmailValidationService:
         allow_empty_local: bool = False,
         allow_quoted_local: bool = False,
         allow_domain_literal: bool = False,
-        deliverable_address: bool = True
+        deliverable_address: bool = True,
+        allowed_special_domains: List[str] = None
     ):
         """
         Initialize email validation service.
         
         Args:
             disposable_checker: DisposableDomainChecker instance
-            dns_checker: DNSChecker instance
+            dns_checker: HTTPDNSChecker instance
             retry_attempts: Number of retry attempts for DNS failures
             retry_delay: Delay between retries in seconds
             allow_smtputf8: Allow Unicode characters
@@ -40,20 +41,21 @@ class EmailValidationService:
             allow_quoted_local: Allow quoted strings
             allow_domain_literal: Allow IP addresses as domains
             deliverable_address: Enable DNS deliverability checks
+            allowed_special_domains: List of special-use domains to allow
         """
         self.disposable_checker = disposable_checker
         self.dns_checker = dns_checker
         self.retry_attempts = retry_attempts
         self.retry_delay = retry_delay
+        self.deliverable_address = deliverable_address
         
-        # Initialize emval validator
-        self.validator = EmailValidator(
+        # Initialize syntax validator
+        self.syntax_validator = EmailSyntaxValidator(
             allow_smtputf8=allow_smtputf8,
             allow_empty_local=allow_empty_local,
             allow_quoted_local=allow_quoted_local,
             allow_domain_literal=allow_domain_literal,
-            deliverable_address=deliverable_address,
-            allowed_special_domains=[]
+            allowed_special_domains=allowed_special_domains or []
         )
         
         logger.info("EmailValidationService initialized")
@@ -77,53 +79,34 @@ class EmailValidationService:
             logger.debug("Empty email encountered")
             return (email, False, "Empty email", "syntax")
         
-        # Check if disposable
+        # Step 1: Validate syntax
+        is_valid_syntax, syntax_error = self.syntax_validator.validate(email)
+        if not is_valid_syntax:
+            logger.debug(f"Invalid email syntax: {email} - {syntax_error}")
+            return (email, False, syntax_error, "syntax")
+        
+        # Step 2: Check if disposable
         if self.disposable_checker.is_disposable(email):
             logger.debug(f"Disposable email rejected: {email}")
             return (email, False, "Disposable email domain", "disposable")
         
-        # Extract domain for caching
-        try:
-            domain = email.split('@')[1].lower()
-        except (IndexError, AttributeError):
-            logger.debug(f"Invalid email format: {email}")
-            return (email, False, "Invalid email format", "syntax")
-        
-        # Check domain cache
-        self.dns_checker.check_domain(domain)
-        
-        # Validate with emval with retry logic for DNS failures
-        for attempt in range(self.retry_attempts):
-            try:
-                result = self.validator.validate_email(email)
-                logger.debug(f"Valid email: {email}")
-                return (email, True, "Valid", "valid")
+        # Step 3: Check DNS deliverability (if enabled)
+        if self.deliverable_address:
+            # Extract domain
+            domain = self.syntax_validator.extract_domain(email)
+            if not domain:
+                logger.debug(f"Could not extract domain from: {email}")
+                return (email, False, "Invalid email format", "syntax")
             
-            except Exception as e:
-                error_msg = str(e)
-                
-                # Categorize error
-                if any(keyword in error_msg.lower() for keyword in ['dns', 'resolve', 'timeout', 'mx']):
-                    error_category = "dns"
-                    # Retry on DNS errors
-                    if attempt < self.retry_attempts - 1:
-                        logger.debug(f"DNS error for {email}, attempt {attempt + 1}/{self.retry_attempts}: {error_msg[:50]}")
-                        time.sleep(self.retry_delay)
-                        continue
-                    else:
-                        logger.warning(f"DNS validation failed after {self.retry_attempts} attempts: {email}")
-                else:
-                    error_category = "syntax"
-                
-                # Shorten error message if too long
-                if len(error_msg) > 100:
-                    error_msg = error_msg[:97] + "..."
-                
-                logger.debug(f"Invalid email: {email} - {error_msg}")
-                return (email, False, error_msg, error_category)
+            # Check DNS MX records
+            has_mx, dns_error = self.dns_checker.check_domain(domain)
+            if not has_mx:
+                logger.debug(f"DNS validation failed for {email}: {dns_error}")
+                return (email, False, dns_error, "dns")
         
-        # Should not reach here, but just in case
-        return (email, False, "Validation failed", "unknown")
+        # All checks passed
+        logger.debug(f"Valid email: {email}")
+        return (email, True, "Valid", "valid")
     
     def get_validator_config(self) -> dict:
         """

@@ -10,7 +10,7 @@ This is a modular, testable email validation system that:
 All configuration is externalized in config/settings.yaml
 """
 
-from validators import EmailValidationService, DNSChecker, DisposableDomainChecker, EmailIOHandler
+from validators import EmailValidationService, HTTPDNSChecker, DisposableDomainChecker, EmailIOHandler
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import yaml
 import time
@@ -80,6 +80,7 @@ def main():
     dns_cache_config = config.get('dns_cache', {})
     validation_config = config.get('validation', {})
     paths_config = config.get('paths', {})
+    network_config = config.get('network', {})
     
     concurrent_jobs = concurrency_config.get('max_workers', 1000)
     batch_size = concurrency_config.get('batch_size', 1000)
@@ -103,9 +104,15 @@ def main():
         disposable_domains_file=paths_config.get('disposable_domains', 'data/disposable_domains.txt')
     )
     
-    # 2. DNS checker with caching
-    dns_checker = DNSChecker(
-        cache_size=dns_cache_config.get('max_size', 10000)
+    # 2. HTTP DNS checker with caching and proxy support
+    proxy_config = network_config.get('proxy', None)
+    dns_checker = HTTPDNSChecker(
+        cache_size=dns_cache_config.get('max_size', 10000),
+        timeout=network_config.get('timeout', 10),
+        max_retries=network_config.get('max_retries', 3),
+        retry_delay=network_config.get('retry_delay', 1.0),
+        rate_limit_delay=network_config.get('rate_limit_delay', 0.1),
+        proxy=proxy_config
     )
     
     # 3. Email validation service
@@ -118,7 +125,8 @@ def main():
         allow_empty_local=validation_config.get('allow_empty_local', False),
         allow_quoted_local=validation_config.get('allow_quoted_local', False),
         allow_domain_literal=validation_config.get('allow_domain_literal', False),
-        deliverable_address=validation_config.get('deliverable_address', True)
+        deliverable_address=validation_config.get('deliverable_address', True),
+        allowed_special_domains=validation_config.get('allowed_special_domains', [])
     )
     
     # 4. I/O handler
