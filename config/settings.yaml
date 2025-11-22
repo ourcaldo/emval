@@ -30,7 +30,6 @@ paths:
   input_file: "data/emails.txt"
   valid_output_dir: "output/valid"
   invalid_output: "output/invalid.txt"
-  summary_output: "output/SUMMARY.txt"
   log_file: "validator.log"
 
 # Logging Configuration
