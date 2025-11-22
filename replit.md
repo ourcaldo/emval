@@ -9,7 +9,7 @@ Command-line application (CLI tool) with modular self-hosted architecture
 ## Key Features
 - **Self-hosted RFC 5322 compliant** email syntax validation
 - **HTTP DNS API verification** using networkcalc.com API with retry logic
-- **Proxy support** for HTTP DNS API requests (optional)
+- **Proxy rotation** with automatic failover and authentication support
 - **Disposable email blocking** (4,765+ domains)
 - **Automatic deduplication** (case-insensitive)
 - **Well-known domain separation** (173+ popular email providers)
@@ -27,11 +27,13 @@ Command-line application (CLI tool) with modular self-hosted architecture
 - **validators/** - Modular validation package
   - `syntax_validator.py` - Self-hosted RFC 5322 email syntax validation
   - `http_dns_checker.py` - HTTP DNS API verification with caching and proxy support
+  - `proxy_manager.py` - Proxy rotation manager with authentication support
   - `core.py` - Email validation service orchestrating all checks
   - `disposable.py` - Disposable domain checker
   - `io_handler.py` - File I/O operations with deduplication
 - **config/settings.yaml** - External configuration file (includes network/proxy settings)
 - **config/well_known_domains.txt** - 173 well-known email providers
+- **data/proxy.txt** - Proxy list file (when proxy rotation is enabled)
 
 ### Technology Stack
 - **Language**: Python 3.11
@@ -40,7 +42,7 @@ Command-line application (CLI tool) with modular self-hosted architecture
 - **DNS**: networkcalc.com HTTP API for MX record verification
 - **Concurrency**: ThreadPoolExecutor for parallel validation
 - **Caching**: LRU cache for DNS lookups
-- **Proxy**: Optional HTTP/HTTPS proxy support
+- **Proxy**: Automatic proxy rotation with authentication support
 
 ## File Structure
 ```
@@ -95,7 +97,13 @@ All settings are externalized in `config/settings.yaml`:
 - `network.max_retries`: Maximum retry attempts (default: 3)
 - `network.retry_delay`: Delay between retries (default: 1.0s)
 - `network.rate_limit_delay`: Delay between requests (default: 0.1s)
-- `network.proxy`: Optional proxy configuration (http/https)
+- `network.proxy`: Enable/disable proxy rotation (true/false, default: false)
+
+### Proxy Settings
+- `paths.proxy_list`: Path to proxy list file (default: data/proxy.txt)
+- Proxy format: `host:port` or `host:port@user:password` (newline separated)
+- Automatic round-robin rotation through proxy list
+- Thread-safe proxy selection
 
 ### Performance Settings
 - `max_workers`: 1000 (concurrent validation jobs)
@@ -158,6 +166,23 @@ All settings are externalized in `config/settings.yaml`:
   - ✅ Structured logging to file and console
   - ✅ Error categorization (syntax, dns, disposable, valid)
 
+### 2025-11-22: Enhanced Proxy Functionality
+- **Simplified proxy configuration**:
+  - ✅ Changed from complex dict to simple true/false toggle in settings.yaml
+  - ✅ Created ProxyManager class for automatic proxy rotation
+  - ✅ Added support for proxy authentication (host:port@user:password)
+  - ✅ Implemented thread-safe round-robin proxy selection
+  - ✅ Proxy list loaded from data/proxy.txt with format validation
+
+- **New components**:
+  - `validators/proxy_manager.py` - Manages proxy loading and rotation
+  - `data/proxy.txt` - Proxy list configuration file with examples
+
+- **Integration**:
+  - HTTPDNSChecker automatically rotates through proxies per request
+  - Graceful fallback when proxy list is empty
+  - Detailed logging for proxy operations
+
 ### 2025-11-22: Project Import Completed
 - Installed dependencies (requests, PyYAML)
 - Configured Email Validator workflow
@@ -176,10 +201,11 @@ None specified yet.
 - All configuration in `config/settings.yaml` - no hardcoded settings
 - Self-hosted validation - no external validation libraries required
 - HTTP DNS API with networkcalc.com for MX record verification
-- Optional proxy support for API requests (HTTP/HTTPS)
+- Proxy rotation with round-robin selection and authentication support
 - Modular architecture allows easy unit testing
 - DNS caching significantly improves performance for duplicate domains
 - Retry logic handles transient API failures gracefully
 - Structured logging provides detailed audit trail
+- Thread-safe proxy selection for concurrent requests
 - Case-insensitive deduplication prevents duplicate processing
 - Rate limiting prevents API abuse
