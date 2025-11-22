@@ -126,7 +126,6 @@ def main():
         input_file=paths_config.get('input_file', 'data/emails.txt'),
         valid_output_dir=paths_config.get('valid_output_dir', 'output/valid'),
         invalid_output=paths_config.get('invalid_output', 'output/invalid.txt'),
-        summary_output=paths_config.get('summary_output', 'output/SUMMARY.txt'),
         well_known_domains_file=paths_config.get('well_known_domains', 'config/well_known_domains.txt')
     )
     
@@ -142,14 +141,16 @@ def main():
     print(f"\nWell-known domains: {len(io_handler.well_known_domains)} loaded")
     print(f"Disposable domains: {disposable_checker.get_domain_count()} loaded\n")
     
-    # Read emails
-    emails = io_handler.read_emails()
+    # Read emails with deduplication
+    emails, duplicates_removed = io_handler.read_emails()
     if not emails:
         logger.error("No emails to process")
         print("Error: No emails found to validate!")
         return
     
-    print(f"Loaded {len(emails)} emails from {paths_config.get('input_file')}")
+    print(f"Loaded {len(emails)} unique emails from {paths_config.get('input_file')}")
+    if duplicates_removed > 0:
+        print(f"Removed {duplicates_removed} duplicate emails")
     
     # Validate emails
     print(f"\nValidating {len(emails)} emails with {concurrent_jobs} concurrent jobs...")
@@ -213,7 +214,7 @@ def main():
     logger.info(f"Validation completed: {len(valid_emails)} valid, {len(invalid_emails)} invalid")
     
     # Write results
-    io_handler.write_results(valid_emails, invalid_emails, start_time, len(emails))
+    io_handler.write_results(valid_emails, invalid_emails)
     
     # Print final summary
     print("\n" + "="*70)

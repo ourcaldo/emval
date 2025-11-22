@@ -148,7 +148,7 @@ class EmailIOHandler:
         valid_emails: List[Tuple[str, str, str]]
     ) -> Tuple[int, int]:
         """
-        Write valid emails to domain-specific files.
+        Write valid emails to domain-specific files (email only, no reason).
         
         Args:
             valid_emails: List of valid email tuples
@@ -174,7 +174,7 @@ class EmailIOHandler:
                 logger.warning(f"Malformed valid email: {email}")
                 continue
         
-        # Write well-known domain files
+        # Write well-known domain files (email only)
         for domain, emails in well_known_emails.items():
             safe_domain = self.sanitize_domain_filename(domain)
             domain_file = os.path.join(self.valid_output_dir, f"{safe_domain}.txt")
@@ -187,7 +187,7 @@ class EmailIOHandler:
             except Exception as e:
                 logger.error(f"Error writing to {domain_file}: {e}")
         
-        # Write other emails
+        # Write other emails (email only)
         other_count = 0
         if other_emails:
             other_file = os.path.join(self.valid_output_dir, "other.txt")
@@ -203,11 +203,11 @@ class EmailIOHandler:
         return len(well_known_emails), other_count
     
     def _write_invalid_emails(self, invalid_emails: List[Tuple[str, str, str]]):
-        """Write invalid emails to file."""
+        """Write invalid emails to file (email only, no reason)."""
         try:
             with open(self.invalid_output, 'w', encoding='utf-8') as f:
-                for email, reason, category in invalid_emails:
-                    f.write(f"{email} | {reason} | {category}\n")
+                for email, _, _ in invalid_emails:
+                    f.write(f"{email}\n")
             logger.info(f"Wrote {len(invalid_emails)} invalid emails to {self.invalid_output}")
         except Exception as e:
             logger.error(f"Error writing to {self.invalid_output}: {e}")
