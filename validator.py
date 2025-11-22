@@ -11,7 +11,7 @@ CONCURRENT_JOBS = 1000  # Change this to control parallelism
 # File paths
 DISPOSABLE_DOMAINS_FILE = "data/disposable_domains.txt"
 INPUT_FILE = "data/emails.txt"
-VALID_OUTPUT = "output/valid_list.txt"
+VALID_OUTPUT_DIR = "output/valid"
 INVALID_OUTPUT = "output/invalid.txt"
 
 
@@ -86,23 +86,48 @@ def read_emails(filename: str) -> List[str]:
 
 def write_results(valid_emails: List[Tuple[str, str]], invalid_emails: List[Tuple[str, str]]):
     """Write validation results to output files."""
-    # Create output directory if it doesn't exist
-    output_dir = os.path.dirname(VALID_OUTPUT)
-    if output_dir and not os.path.exists(output_dir):
-        os.makedirs(output_dir, exist_ok=True)
-        print(f"Created output directory: {output_dir}")
+    # Create valid output directory if it doesn't exist
+    if not os.path.exists(VALID_OUTPUT_DIR):
+        os.makedirs(VALID_OUTPUT_DIR, exist_ok=True)
+        print(f"Created valid output directory: {VALID_OUTPUT_DIR}")
     
-    # Write valid emails
-    with open(VALID_OUTPUT, 'w', encoding='utf-8') as f:
-        for email, _ in valid_emails:
-            f.write(f"{email}\n")
+    # Create invalid output directory if it doesn't exist
+    invalid_output_dir = os.path.dirname(INVALID_OUTPUT)
+    if invalid_output_dir and not os.path.exists(invalid_output_dir):
+        os.makedirs(invalid_output_dir, exist_ok=True)
+    
+    # Group valid emails by domain
+    domain_emails = {}
+    for email, _ in valid_emails:
+        try:
+            domain = email.split('@')[1].lower()
+            if domain not in domain_emails:
+                domain_emails[domain] = []
+            domain_emails[domain].append(email)
+        except (IndexError, AttributeError):
+            # Skip malformed emails (shouldn't happen for valid emails)
+            continue
+    
+    # Write valid emails organized by domain
+    total_files_created = 0
+    for domain, emails in domain_emails.items():
+        # Create a safe filename from domain (replace special chars)
+        safe_domain = domain.replace('/', '_').replace('\\', '_')
+        domain_file = os.path.join(VALID_OUTPUT_DIR, f"{safe_domain}.txt")
+        
+        with open(domain_file, 'w', encoding='utf-8') as f:
+            for email in sorted(emails):
+                f.write(f"{email}\n")
+        total_files_created += 1
     
     # Write invalid emails with reasons
     with open(INVALID_OUTPUT, 'w', encoding='utf-8') as f:
         for email, reason in invalid_emails:
             f.write(f"{email} | {reason}\n")
     
-    print(f"\nValid emails saved to: {VALID_OUTPUT}")
+    print(f"\nValid emails saved to: {VALID_OUTPUT_DIR}/")
+    print(f"  - Created {total_files_created} domain-specific files")
+    print(f"  - Total valid emails: {len(valid_emails)}")
     print(f"Invalid emails saved to: {INVALID_OUTPUT}")
 
 
