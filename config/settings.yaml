@@ -21,9 +21,7 @@ network:
   max_retries: 3            # Maximum retry attempts for API requests
   retry_delay: 1.0          # Delay between retries in seconds
   rate_limit_delay: 0.1     # Minimum delay between API requests (to avoid rate limiting)
-  # proxy:                  # Optional proxy configuration (uncomment to use)
-  #   http: "http://proxy-server:8080"
-  #   https: "https://proxy-server:8080"
+  proxy: false              # Enable/disable proxy usage (true/false)
 
 # Email Validator Rules
 validation:
@@ -38,6 +36,7 @@ validation:
 paths:
   disposable_domains: "data/disposable_domains.txt"
   well_known_domains: "config/well_known_domains.txt"
+  proxy_list: "data/proxy.txt"
   input_file: "data/emails.txt"
   valid_output_dir: "output/valid"
   invalid_output: "output/invalid.txt"

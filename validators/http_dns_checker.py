@@ -5,9 +5,12 @@ Replaces local DNS resolution with external API calls.
 
 import requests
 from functools import lru_cache
-from typing import Tuple, Optional, Dict, Any
+from typing import Tuple, Optional, Dict, Any, TYPE_CHECKING
 import time
 import logging
+
+if TYPE_CHECKING:
+    from .proxy_manager import ProxyManager
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +29,7 @@ class HTTPDNSChecker:
         timeout: int = 10,
         max_retries: int = 3,
         retry_delay: float = 1.0,
-        proxy: Optional[Dict[str, str]] = None,
+        proxy_manager: Optional['ProxyManager'] = None,
         rate_limit_delay: float = 0.1
     ):
         """
@@ -37,14 +40,14 @@ class HTTPDNSChecker:
             timeout: Request timeout in seconds
             max_retries: Maximum number of retry attempts
             retry_delay: Delay between retries in seconds
-            proxy: Optional proxy configuration (e.g., {'http': 'http://proxy:8080', 'https': 'https://proxy:8080'})
+            proxy_manager: Optional ProxyManager instance for proxy rotation
             rate_limit_delay: Minimum delay between API requests to avoid rate limiting
         """
         self.cache_size = cache_size
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self.proxy = proxy
+        self.proxy_manager = proxy_manager
         self.rate_limit_delay = rate_limit_delay
         self.last_request_time = 0
         
@@ -52,8 +55,8 @@ class HTTPDNSChecker:
         self._check_domain_cached = lru_cache(maxsize=cache_size)(self._check_domain_impl)
         
         logger.info(f"HTTPDNSChecker initialized with cache size: {cache_size}")
-        if proxy:
-            logger.info(f"Using proxy: {proxy}")
+        if proxy_manager and proxy_manager.is_enabled():
+            logger.info(f"Proxy rotation enabled with {proxy_manager.get_proxy_count()} proxies")
     
     def check_domain(self, domain: str) -> Tuple[bool, str]:
         """
@@ -87,6 +90,11 @@ class HTTPDNSChecker:
         # Try multiple times with exponential backoff
         for attempt in range(self.max_retries):
             try:
+                # Get proxy from manager (rotates automatically)
+                proxy = None
+                if self.proxy_manager and self.proxy_manager.is_enabled():
+                    proxy = self.proxy_manager.get_next_proxy()
+                
                 # Make API request
                 url = f"{self.API_BASE_URL}/{domain}"
                 
@@ -95,7 +103,7 @@ class HTTPDNSChecker:
                 response = requests.get(
                     url,
                     timeout=self.timeout,
-                    proxies=self.proxy,
+                    proxies=proxy,
                     headers={
                         'User-Agent': 'EmailValidator/1.0',
                         'Accept': 'application/json'

@@ -10,7 +10,7 @@ This is a modular, testable email validation system that:
 All configuration is externalized in config/settings.yaml
 """
 
-from validators import EmailValidationService, HTTPDNSChecker, DisposableDomainChecker, EmailIOHandler
+from validators import EmailValidationService, HTTPDNSChecker, DisposableDomainChecker, EmailIOHandler, ProxyManager
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import yaml
 import time
@@ -104,18 +104,27 @@ def main():
         disposable_domains_file=paths_config.get('disposable_domains', 'data/disposable_domains.txt')
     )
     
-    # 2. HTTP DNS checker with caching and proxy support
-    proxy_config = network_config.get('proxy', None)
+    # 2. Proxy manager (if enabled)
+    proxy_manager = None
+    proxy_enabled = network_config.get('proxy', False)
+    if proxy_enabled:
+        proxy_list_file = paths_config.get('proxy_list', 'data/proxy.txt')
+        proxy_manager = ProxyManager(proxy_list_file)
+        if not proxy_manager.is_enabled():
+            logger.warning("Proxy enabled but no valid proxies loaded. Continuing without proxy.")
+            print("Warning: Proxy enabled but no valid proxies found in proxy list file.")
+    
+    # 3. HTTP DNS checker with caching and proxy support
     dns_checker = HTTPDNSChecker(
         cache_size=dns_cache_config.get('max_size', 10000),
         timeout=network_config.get('timeout', 10),
         max_retries=network_config.get('max_retries', 3),
         retry_delay=network_config.get('retry_delay', 1.0),
         rate_limit_delay=network_config.get('rate_limit_delay', 0.1),
-        proxy=proxy_config
+        proxy_manager=proxy_manager
     )
     
-    # 3. Email validation service
+    # 4. Email validation service
     validation_service = EmailValidationService(
         disposable_checker=disposable_checker,
         dns_checker=dns_checker,
@@ -129,7 +138,7 @@ def main():
         allowed_special_domains=validation_config.get('allowed_special_domains', [])
     )
     
-    # 4. I/O handler
+    # 5. I/O handler
     io_handler = EmailIOHandler(
         input_file=paths_config.get('input_file', 'data/emails.txt'),
         valid_output_dir=paths_config.get('valid_output_dir', 'output/valid'),
@@ -146,6 +155,10 @@ def main():
     print(f"   - DNS deliverability: {'Enabled' if validation_config.get('deliverable_address') else 'Disabled'}")
     print(f"   - Retry attempts: {retry_config.get('attempts', 3)}")
     print(f"   - DNS caching: Enabled (max {dns_cache_config.get('max_size', 10000)} domains)")
+    if proxy_manager and proxy_manager.is_enabled():
+        print(f"   - Proxy rotation: Enabled ({proxy_manager.get_proxy_count()} proxies loaded)")
+    else:
+        print(f"   - Proxy rotation: Disabled")
     print(f"\nWell-known domains: {len(io_handler.well_known_domains)} loaded")
     print(f"Disposable domains: {disposable_checker.get_domain_count()} loaded\n")
     

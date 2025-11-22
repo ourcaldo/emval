@@ -1,0 +1,22 @@
+# Proxy List Configuration
+# 
+# This file contains a list of proxies used for rotating HTTP requests.
+# Proxies are automatically rotated in round-robin fashion.
+#
+# Supported Formats (one proxy per line):
+# 1. host:port              - Proxy without authentication
+# 2. host:port@user:pass    - Proxy with authentication
+#
+# Examples:
+# 192.168.1.100:8080
+# proxy.example.com:3128
+# 10.0.0.50:8080@username:password
+# proxy-server.net:9050@myuser:mypass123
+#
+# Notes:
+# - Empty lines and lines starting with # are ignored
+# - Invalid proxy formats will be logged as warnings
+# - Enable proxy in config/settings.yaml by setting network.proxy to true
+#
+# Add your proxies below (one per line):
+
