@@ -211,9 +211,19 @@ class LocalDNSChecker:
                 # After all retries, return temporary failure (not cacheable)
                 return False, "DNS check timeout (temporary)", False
             
+            except dns.resolver.LifetimeTimeout:
+                # Lifetime timeout (total timeout exceeded) - temporary failure
+                logger.warning(f"DNS lifetime timeout for domain: {domain} (attempt {attempt + 1}/{self.max_retries})")
+                if attempt < self.max_retries - 1:
+                    wait_time = self.retry_delay * (2 ** attempt)
+                    logger.debug(f"Waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
+                    continue
+                return False, "DNS lifetime timeout (temporary)", False
+            
             except dns.resolver.NoNameservers:
                 # All nameservers failed - temporary failure, don't cache
-                logger.warning(f"All nameservers failed for domain: {domain}")
+                logger.warning(f"All nameservers failed for domain: {domain} (attempt {attempt + 1}/{self.max_retries})")
                 if attempt < self.max_retries - 1:
                     wait_time = self.retry_delay * (2 ** attempt)
                     logger.debug(f"Waiting {wait_time}s before retry...")
@@ -221,14 +231,24 @@ class LocalDNSChecker:
                     continue
                 return False, "All DNS servers failed (temporary)", False
             
+            except dns.resolver.NoResolverConfiguration:
+                # No resolver configuration - configuration error, treat as temporary
+                logger.error(f"No resolver configuration for domain: {domain}")
+                if attempt < self.max_retries - 1:
+                    wait_time = self.retry_delay * (2 ** attempt)
+                    logger.debug(f"Waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
+                    continue
+                return False, "DNS resolver not configured (temporary)", False
+            
             except dns.resolver.NoAnswer:
                 # Should not reach here (handled above), but if we do, it's definitive
                 logger.debug(f"No DNS records for domain: {domain}")
                 return False, "No DNS records found", True
             
             except dns.exception.DNSException as e:
-                # DNS-specific error - could be temporary or permanent
-                logger.warning(f"DNS error for domain {domain}: {e}")
+                # Generic DNS error - could be temporary or permanent, treat as temporary to be safe
+                logger.warning(f"DNS exception for domain {domain}: {type(e).__name__}: {e}")
                 if attempt < self.max_retries - 1:
                     wait_time = self.retry_delay * (2 ** attempt)
                     logger.debug(f"Waiting {wait_time}s before retry...")
