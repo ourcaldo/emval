@@ -9,6 +9,7 @@ from .disposable import DisposableDomainChecker
 from .io_handler import EmailIOHandler
 from .syntax_validator import EmailSyntaxValidator
 from .proxy_manager import ProxyManager
+from .smtp_validator import SMTPValidator
 
 __all__ = [
     'EmailValidationService',
@@ -17,5 +18,6 @@ __all__ = [
     'DisposableDomainChecker',
     'EmailIOHandler',
     'EmailSyntaxValidator',
-    'ProxyManager'
+    'ProxyManager',
+    'SMTPValidator'
 ]

@@ -1,10 +1,4 @@
 requests>=2.31.0
 pyyaml>=6.0
-pyyaml
-requests
-pyyaml
-requests
-pyyaml
-requests
-dnspython
-dnspython
+dnspython>=2.8.0
+pysocks>=1.7.1

@@ -265,6 +265,32 @@ class LocalDNSChecker:
         # Should not reach here, but if we do, return temporary failure
         return False, "DNS lookup failed after retries (temporary)", False
     
+    def get_mx_servers(self, domain: str) -> List[str]:
+        """
+        Get list of MX servers for a domain, sorted by priority.
+        
+        Args:
+            domain: Domain name to get MX servers for
+            
+        Returns:
+            List of MX server hostnames sorted by priority (lowest first)
+        """
+        domain = domain.lower()
+        mx_servers = []
+        
+        try:
+            mx_records = self.resolver.resolve(domain, 'MX')
+            if mx_records:
+                mx_list = [(str(mx.exchange).rstrip('.'), mx.preference) for mx in mx_records]
+                mx_list.sort(key=lambda x: x[1])
+                mx_servers = [mx[0] for mx in mx_list if mx[0] != '']
+                logger.debug(f"Found {len(mx_servers)} MX servers for {domain}: {mx_servers}")
+        
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.exception.DNSException) as e:
+            logger.debug(f"No MX servers found for {domain}: {e}")
+        
+        return mx_servers
+    
     def get_cache_info(self) -> dict:
         """
         Get cache statistics.

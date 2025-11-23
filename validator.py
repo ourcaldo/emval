@@ -10,7 +10,7 @@ This is a modular, testable email validation system that:
 All configuration is externalized in config/settings.yaml
 """
 
-from validators import EmailValidationService, LocalDNSChecker, DisposableDomainChecker, EmailIOHandler, ProxyManager
+from validators import EmailValidationService, LocalDNSChecker, DisposableDomainChecker, EmailIOHandler, ProxyManager, SMTPValidator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import yaml
 import time
@@ -80,6 +80,7 @@ def main():
     dns_cache_config = config.get('dns_cache', {})
     dns_config = config.get('dns', {})
     validation_config = config.get('validation', {})
+    smtp_config = config.get('smtp', {})
     paths_config = config.get('paths', {})
     network_config = config.get('network', {})
     
@@ -105,15 +106,17 @@ def main():
         disposable_domains_file=paths_config.get('disposable_domains', 'data/disposable_domains.txt')
     )
     
-    # 2. Proxy manager (if enabled)
+    # 2. Proxy manager (SOCKS5 with rate limiting)
     proxy_manager = None
-    proxy_enabled = network_config.get('proxy', False)
-    if proxy_enabled:
+    smtp_use_proxy = smtp_config.get('use_proxy', True) and smtp_config.get('enabled', True)
+    if smtp_use_proxy:
         proxy_list_file = paths_config.get('proxy_list', 'data/proxy.txt')
-        proxy_manager = ProxyManager(proxy_list_file)
+        proxy_rate_limit = smtp_config.get('proxy_rate_limit', 1.0)
+        proxy_manager = ProxyManager(proxy_list_file, rate_limit_seconds=proxy_rate_limit)
         if not proxy_manager.is_enabled():
-            logger.warning("Proxy enabled but no valid proxies loaded. Continuing without proxy.")
-            print("Warning: Proxy enabled but no valid proxies found in proxy list file.")
+            logger.warning("SMTP proxy enabled but no valid SOCKS5 proxies loaded. Continuing without proxy.")
+            print("Warning: SMTP proxy enabled but no valid SOCKS5 proxies found in proxy list file.")
+            proxy_manager = None
     
     # 3. Local DNS checker with caching (5-10x faster than HTTP API!)
     dns_servers = dns_config.get('servers', [])
@@ -125,10 +128,23 @@ def main():
         dns_servers=dns_servers if dns_servers else None
     )
     
-    # 4. Email validation service
+    # 4. SMTP validator (for RCPT TO and catch-all detection)
+    smtp_validator = None
+    smtp_enabled = smtp_config.get('enabled', True) and validation_config.get('smtp_validation', True)
+    if smtp_enabled:
+        smtp_validator = SMTPValidator(
+            proxy_manager=proxy_manager,
+            timeout=smtp_config.get('timeout', 10),
+            from_email=smtp_config.get('from_email', 'verify@example.com'),
+            max_retries=smtp_config.get('max_retries', 2)
+        )
+        logger.info("SMTP validator initialized for RCPT TO and catch-all detection")
+    
+    # 5. Email validation service
     validation_service = EmailValidationService(
         disposable_checker=disposable_checker,
         dns_checker=dns_checker,
+        smtp_validator=smtp_validator,
         retry_attempts=retry_config.get('attempts', 3),
         retry_delay=retry_config.get('delay', 0.5),
         allow_smtputf8=validation_config.get('allow_smtputf8', False),
@@ -136,14 +152,17 @@ def main():
         allow_quoted_local=validation_config.get('allow_quoted_local', False),
         allow_domain_literal=validation_config.get('allow_domain_literal', False),
         deliverable_address=validation_config.get('deliverable_address', True),
+        smtp_validation=smtp_enabled,
         allowed_special_domains=validation_config.get('allowed_special_domains', [])
     )
     
-    # 5. I/O handler
+    # 6. I/O handler
     io_handler = EmailIOHandler(
         input_file=paths_config.get('input_file', 'data/emails.txt'),
         valid_output_dir=paths_config.get('valid_output_dir', 'output/valid'),
+        risk_output_dir=paths_config.get('risk_output_dir', 'output/risk'),
         invalid_output=paths_config.get('invalid_output', 'output/invalid.txt'),
+        unknown_output=paths_config.get('unknown_output', 'output/unknown.txt'),
         well_known_domains_file=paths_config.get('well_known_domains', 'config/well_known_domains.txt')
     )
     
@@ -155,12 +174,13 @@ def main():
     print(f"   - IP addresses: {'Allowed' if validation_config.get('allow_domain_literal') else 'Not allowed'}")
     print(f"   - Plus-addressing: Provider-aware (rejected for Gmail/Google, allowed for others)")
     print(f"   - DNS deliverability: {'Enabled' if validation_config.get('deliverable_address') else 'Disabled'}")
+    print(f"   - SMTP validation (RCPT TO): {'Enabled' if smtp_enabled else 'Disabled'}")
     print(f"   - Retry attempts: {retry_config.get('attempts', 3)}")
     print(f"   - DNS caching: Enabled (max {dns_cache_config.get('max_size', 10000)} domains)")
     if proxy_manager and proxy_manager.is_enabled():
-        print(f"   - Proxy rotation: Enabled ({proxy_manager.get_proxy_count()} proxies loaded)")
+        print(f"   - SOCKS5 proxy: Enabled ({proxy_manager.get_proxy_count()} proxies, rate: {smtp_config.get('proxy_rate_limit', 1.0)}/proxy/sec)")
     else:
-        print(f"   - Proxy rotation: Disabled")
+        print(f"   - SOCKS5 proxy: Disabled")
     print(f"\nWell-known domains: {len(io_handler.well_known_domains)} loaded")
     print(f"Disposable domains: {disposable_checker.get_domain_count()} loaded\n")
     
@@ -179,10 +199,15 @@ def main():
     print(f"\nValidating {len(emails)} emails with {concurrent_jobs} concurrent jobs...")
     print("Starting validation process...\n")
     
-    valid_emails = []
-    invalid_emails = []
+    all_results = []
     start_time = time.time()
     completed = 0
+    
+    # Counters for each category
+    valid_count = 0
+    risk_count = 0
+    invalid_count = 0
+    unknown_count = 0
     
     # Process emails concurrently in batches
     with ThreadPoolExecutor(max_workers=concurrent_jobs) as executor:
@@ -201,10 +226,17 @@ def main():
                 email, is_valid, reason, category = future.result()
                 completed += 1
                 
-                if is_valid:
-                    valid_emails.append((email, reason, category))
-                else:
-                    invalid_emails.append((email, reason, category))
+                all_results.append((email, reason, category))
+                
+                # Update category counters
+                if category == 'valid':
+                    valid_count += 1
+                elif category == 'risk':
+                    risk_count += 1
+                elif category == 'invalid':
+                    invalid_count += 1
+                elif category == 'unknown':
+                    unknown_count += 1
                 
                 # Calculate and display progress
                 current_time = time.time()
@@ -225,7 +257,7 @@ def main():
                 # Print progress (same line with carriage return)
                 print(
                     f"{completed}/{len(emails)} - {percentage:.1f}% | "
-                    f"Valid: {len(valid_emails)} | Invalid: {len(invalid_emails)} | "
+                    f"Valid: {valid_count} | Risk: {risk_count} | Invalid: {invalid_count} | Unknown: {unknown_count} | "
                     f"Speed: {speed:.1f}/sec | ETA: {eta_str}",
                     end='\r',
                     flush=True
@@ -234,18 +266,20 @@ def main():
     print()  # New line after progress
     elapsed_time = time.time() - start_time
     
-    logger.info(f"Validation completed: {len(valid_emails)} valid, {len(invalid_emails)} invalid")
+    logger.info(f"Validation completed: Valid={valid_count}, Risk={risk_count}, Invalid={invalid_count}, Unknown={unknown_count}")
     
     # Write results
-    io_handler.write_results(valid_emails, invalid_emails)
+    io_handler.write_results(all_results)
     
     # Print final summary
     print("\n" + "="*70)
     print("VALIDATION SUMMARY")
     print("="*70)
     print(f"Total Emails:     {len(emails)}")
-    print(f"Valid:            {len(valid_emails)}")
-    print(f"Invalid:          {len(invalid_emails)}")
+    print(f"Valid (safe):     {valid_count}")
+    print(f"Risk (catch-all): {risk_count}")
+    print(f"Invalid:          {invalid_count}")
+    print(f"Unknown:          {unknown_count}")
     print(f"Time Taken:       {elapsed_time:.2f} seconds")
     print(f"Speed:            {len(emails)/elapsed_time:.2f} emails/second")
     print("="*70)

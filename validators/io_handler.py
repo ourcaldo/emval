@@ -19,7 +19,9 @@ class EmailIOHandler:
         self,
         input_file: str,
         valid_output_dir: str,
+        risk_output_dir: str,
         invalid_output: str,
+        unknown_output: str,
         well_known_domains_file: str
     ):
         """
@@ -27,13 +29,17 @@ class EmailIOHandler:
         
         Args:
             input_file: Path to input emails file
-            valid_output_dir: Directory for valid emails output
+            valid_output_dir: Directory for valid emails output (passed all validations)
+            risk_output_dir: Directory for risky emails output (catch-all domains)
             invalid_output: Path to invalid emails output file
+            unknown_output: Path to unknown emails output file (SMTP errors)
             well_known_domains_file: Path to well-known domains config file
         """
         self.input_file = input_file
         self.valid_output_dir = valid_output_dir
+        self.risk_output_dir = risk_output_dir
         self.invalid_output = invalid_output
+        self.unknown_output = unknown_output
         self.well_known_domains_file = well_known_domains_file
         self.well_known_domains = self._load_well_known_domains()
     
@@ -114,45 +120,64 @@ class EmailIOHandler:
     
     def write_results(
         self,
-        valid_emails: List[Tuple[str, str, str]],
-        invalid_emails: List[Tuple[str, str, str]]
+        all_emails: List[Tuple[str, str, str]]
     ):
         """
-        Write validation results to output files.
+        Write validation results to output files based on categories.
         
         Args:
-            valid_emails: List of (email, reason, category) tuples for valid emails
-            invalid_emails: List of (email, reason, category) tuples for invalid emails
+            all_emails: List of (email, reason, category) tuples
+                category can be: 'valid', 'risk', 'invalid', 'unknown'
         """
         # Create output directories
         self._create_output_directories()
         
-        # Group and write valid emails
-        well_known_count, other_count = self._write_valid_emails(valid_emails)
+        # Separate emails by category
+        valid_emails = [(e, r, c) for e, r, c in all_emails if c == 'valid']
+        risk_emails = [(e, r, c) for e, r, c in all_emails if c == 'risk']
+        invalid_emails = [(e, r, c) for e, r, c in all_emails if c == 'invalid']
+        unknown_emails = [(e, r, c) for e, r, c in all_emails if c == 'unknown']
         
-        # Write invalid emails
-        self._write_invalid_emails(invalid_emails)
+        # Write each category
+        valid_wk_count, valid_other_count = self._write_category_emails(valid_emails, self.valid_output_dir, "valid")
+        risk_wk_count, risk_other_count = self._write_category_emails(risk_emails, self.risk_output_dir, "risk")
+        
+        self._write_single_file_category(invalid_emails, self.invalid_output, "invalid")
+        self._write_single_file_category(unknown_emails, self.unknown_output, "unknown")
         
         # Print summary
-        self._print_summary(len(valid_emails), len(invalid_emails), well_known_count, other_count)
+        self._print_summary(
+            len(valid_emails), len(risk_emails), len(invalid_emails), len(unknown_emails),
+            valid_wk_count, valid_other_count, risk_wk_count, risk_other_count
+        )
     
     def _create_output_directories(self):
         """Create necessary output directories."""
-        for directory in [self.valid_output_dir, os.path.dirname(self.invalid_output)]:
+        directories = [
+            self.valid_output_dir,
+            self.risk_output_dir,
+            os.path.dirname(self.invalid_output),
+            os.path.dirname(self.unknown_output)
+        ]
+        for directory in directories:
             if directory and not os.path.exists(directory):
                 os.makedirs(directory, exist_ok=True)
                 logger.info(f"Created output directory: {directory}")
     
-    def _write_valid_emails(
+    def _write_category_emails(
         self,
-        valid_emails: List[Tuple[str, str, str]]
+        emails: List[Tuple[str, str, str]],
+        output_dir: str,
+        category_name: str
     ) -> Tuple[int, int]:
         """
-        Write valid emails to domain-specific files (email only, no reason).
+        Write emails to domain-specific files in a category directory.
         Uses append mode to preserve existing results.
         
         Args:
-            valid_emails: List of valid email tuples
+            emails: List of email tuples
+            output_dir: Output directory for this category
+            category_name: Category name for logging
             
         Returns:
             Tuple of (well_known_files_count, other_emails_count)
@@ -161,7 +186,7 @@ class EmailIOHandler:
         well_known_emails = {}
         other_emails = []
         
-        for email, _, _ in valid_emails:
+        for email, _, _ in emails:
             try:
                 domain = email.split('@')[1].lower()
                 
@@ -176,9 +201,9 @@ class EmailIOHandler:
                 continue
         
         # Write well-known domain files (email only) in append mode
-        for domain, emails in well_known_emails.items():
+        for domain, domain_emails in well_known_emails.items():
             safe_domain = self.sanitize_domain_filename(domain)
-            domain_file = os.path.join(self.valid_output_dir, f"{safe_domain}.txt")
+            domain_file = os.path.join(output_dir, f"{safe_domain}.txt")
             
             try:
                 # Read existing emails to avoid duplicates
@@ -188,7 +213,7 @@ class EmailIOHandler:
                         existing_emails = set(line.strip().lower() for line in f if line.strip())
                 
                 # Only write new emails
-                new_emails = [e for e in sorted(emails) if e.lower() not in existing_emails]
+                new_emails = [e for e in sorted(domain_emails) if e.lower() not in existing_emails]
                 
                 if new_emails:
                     with open(domain_file, 'a', encoding='utf-8') as f:
@@ -203,7 +228,7 @@ class EmailIOHandler:
         # Write other emails (email only) in append mode
         other_count = 0
         if other_emails:
-            other_file = os.path.join(self.valid_output_dir, "other.txt")
+            other_file = os.path.join(output_dir, "other.txt")
             try:
                 # Read existing emails to avoid duplicates
                 existing_emails = set()
@@ -227,39 +252,74 @@ class EmailIOHandler:
         
         return len(well_known_emails), other_count
     
-    def _write_invalid_emails(self, invalid_emails: List[Tuple[str, str, str]]):
-        """Write invalid emails to file (email only, no reason) in append mode."""
+    def _write_single_file_category(
+        self,
+        emails: List[Tuple[str, str, str]],
+        output_file: str,
+        category_name: str
+    ):
+        """
+        Write emails to a single file (email only, no reason) in append mode.
+        
+        Args:
+            emails: List of email tuples
+            output_file: Output file path
+            category_name: Category name for logging
+        """
         try:
             # Read existing emails to avoid duplicates
             existing_emails = set()
-            if os.path.exists(self.invalid_output):
-                with open(self.invalid_output, 'r', encoding='utf-8') as f:
+            if os.path.exists(output_file):
+                with open(output_file, 'r', encoding='utf-8') as f:
                     existing_emails = set(line.strip().lower() for line in f if line.strip())
             
             # Only write new emails
-            new_emails = [email for email, _, _ in invalid_emails if email.lower() not in existing_emails]
+            new_emails = [email for email, _, _ in emails if email.lower() not in existing_emails]
             
             if new_emails:
-                with open(self.invalid_output, 'a', encoding='utf-8') as f:
+                with open(output_file, 'a', encoding='utf-8') as f:
                     for email in new_emails:
                         f.write(f"{email}\n")
-                logger.info(f"Appended {len(new_emails)} new invalid emails to {self.invalid_output}")
+                logger.info(f"Appended {len(new_emails)} new {category_name} emails to {output_file}")
             else:
-                logger.info(f"No new invalid emails to append to {self.invalid_output}")
+                logger.info(f"No new {category_name} emails to append to {output_file}")
         except Exception as e:
-            logger.error(f"Error writing to {self.invalid_output}: {e}")
+            logger.error(f"Error writing {category_name} emails to {output_file}: {e}")
     
     def _print_summary(
         self,
         valid_count: int,
+        risk_count: int,
         invalid_count: int,
-        well_known_files_count: int,
-        other_count: int
+        unknown_count: int,
+        valid_wk_count: int,
+        valid_other_count: int,
+        risk_wk_count: int,
+        risk_other_count: int
     ):
         """Print summary to console."""
-        print(f"\nValid emails saved to: {self.valid_output_dir}/")
-        print(f"  - Created {well_known_files_count} well-known domain files")
-        if other_count > 0:
-            print(f"  - Created other.txt with {other_count} emails from unknown domains")
-        print(f"  - Total valid emails: {valid_count}")
-        print(f"Invalid emails saved to: {self.invalid_output}")
+        print(f"\n{'='*70}")
+        print("OUTPUT SUMMARY")
+        print(f"{'='*70}")
+        
+        if valid_count > 0:
+            print(f"\nVALID (safe) emails saved to: {self.valid_output_dir}/")
+            print(f"  - {valid_wk_count} well-known domain files")
+            if valid_other_count > 0:
+                print(f"  - other.txt with {valid_other_count} emails")
+            print(f"  - Total: {valid_count} emails")
+        
+        if risk_count > 0:
+            print(f"\nRISK (catch-all) emails saved to: {self.risk_output_dir}/")
+            print(f"  - {risk_wk_count} well-known domain files")
+            if risk_other_count > 0:
+                print(f"  - other.txt with {risk_other_count} emails")
+            print(f"  - Total: {risk_count} emails")
+        
+        if invalid_count > 0:
+            print(f"\nINVALID emails saved to: {self.invalid_output}")
+            print(f"  - Total: {invalid_count} emails")
+        
+        if unknown_count > 0:
+            print(f"\nUNKNOWN (SMTP errors) emails saved to: {self.unknown_output}")
+            print(f"  - Total: {unknown_count} emails")
