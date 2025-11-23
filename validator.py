@@ -350,7 +350,7 @@ def main():
     # Print final summary (merged with output summary)
     print("\n" + "="*70)
     print("VALIDATION SUMMARY")
-    print("="*70)
+    print()
     print(f"Total Emails:     {len(emails)}")
     print(f"Valid (safe):     {valid_count}")
     print(f"Risk (catch-all): {risk_count}")
@@ -358,8 +358,8 @@ def main():
     print(f"Unknown:          {unknown_count}")
     print(f"Time Taken:       {elapsed_time:.2f} seconds")
     print(f"Speed:            {len(emails)/elapsed_time:.2f} emails/second")
-    print("="*70)
-    print(f"\nOutput Files:")
+    print()
+    print(f"Output Files:")
     if valid_count > 0:
         print(f"  Valid emails: {output_info['valid_dir']}/")
     if risk_count > 0:
