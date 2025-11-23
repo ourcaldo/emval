@@ -46,30 +46,27 @@ class ProgressDisplay:
             self.config_printed = True
     
     def print_progress(self, current, total, valid, risk, invalid, unknown, speed, eta_str=""):
-        """Print single-line progress that updates in place using \\r"""
+        """Print progress only at intervals to avoid log spam"""
         # Print config once on first call
         if not self.config_printed:
             self.print_config()
         
+        # Only print progress at key intervals: 25%, 50%, 75%, 100%
         progress = (current / total) * 100
+        show_progress = (progress % 25 < (100.0 / total)) or progress >= 99.9
         
-        # Create progress bar
-        bar_length = 40
-        filled = int(bar_length * current // total)
-        bar = '█' * filled + '░' * (bar_length - filled)
-        
-        # Build single-line progress string
-        status = (
-            f"\r[{bar}] {progress:.1f}% | "
-            f"{current}/{total} | "
-            f"Valid: {valid} | Risk: {risk} | Invalid: {invalid} | Unknown: {unknown} | "
-            f"Speed: {speed:.1f}/s"
-        )
-        if eta_str:
-            status += f" | ETA: {eta_str}"
-        
-        # Pad with spaces to clear any leftover characters
-        print(status.ljust(120), end='', flush=True)
+        if show_progress:
+            # Create progress bar
+            bar_length = 40
+            filled = int(bar_length * current // total)
+            bar = '█' * filled + '░' * (bar_length - filled)
+            
+            status = (
+                f"[{bar}] {progress:.1f}% | "
+                f"{current}/{total} | "
+                f"Valid: {valid} | Risk: {risk} | Invalid: {invalid} | Unknown: {unknown}"
+            )
+            print(status, flush=True)
     
     def finish(self):
         """Move to next line after progress completes"""
