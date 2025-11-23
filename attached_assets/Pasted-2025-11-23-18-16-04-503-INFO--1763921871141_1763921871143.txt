@@ -1,0 +1,38 @@
+2025-11-23 18:16:04,503 - INFO - ======================================================================
+2025-11-23 18:16:04,503 - INFO - Email validation process started
+2025-11-23 18:16:04,503 - INFO - Concurrent jobs: 1000
+2025-11-23 18:16:04,503 - INFO - Retry attempts: 3
+Initializing validation components...
+2025-11-23 18:16:04,506 - INFO - Loaded 4765 disposable domains from data/disposable_domains.txt
+2025-11-23 18:16:04,506 - INFO - Using default DNS servers: ['8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1']
+2025-11-23 18:16:04,506 - INFO - LocalDNSChecker initialized with cache size: 10000, timeout: 5s, nameservers: 4
+2025-11-23 18:16:04,506 - INFO - Downloading fresh TLD list from https://data.iana.org/TLD/tlds-alpha-by-domain.txt
+2025-11-23 18:16:04,640 - INFO - TLD list downloaded successfully. Total TLDs: 1438
+2025-11-23 18:16:04,640 - INFO - TLD list version: # Version 2025112300, Last Updated Sun Nov 23 07:07:02 2025 UTC
+2025-11-23 18:16:04,641 - INFO - EmailSyntaxValidator initialized with strict rules
+2025-11-23 18:16:04,641 - INFO - TLD list loaded: 1438 TLDs
+2025-11-23 18:16:04,641 - INFO - TLD version: # Version 2025112300, Last Updated Sun Nov 23 07:07:02 2025 UTC
+2025-11-23 18:16:04,641 - INFO - EmailValidationService initialized
+2025-11-23 18:16:04,641 - INFO - Retry attempts: 3, Retry delay: 0.5s
+2025-11-23 18:16:04,642 - INFO - SMTP validation: Disabled
+2025-11-23 18:16:04,642 - INFO - Strict syntax: NO plus-addressing, NO hyphens in local part, TLD validated against IANA list
+2025-11-23 18:16:04,642 - INFO - Loaded 173 well-known domains from config/well_known_domains.txt
+
+Validator configured with STRICT syntax rules:
+   - Local part: ONLY a-z A-Z 0-9 . _ (NO plus-addressing, NO hyphens, NO special chars)
+   - Dots/underscores: Cannot be at start or end (consecutive underscores OK)
+   - TLD validation: IANA list (downloaded fresh on each run)
+   - DNS deliverability: Enabled
+   - SMTP validation (RCPT TO): Disabled
+   - Retry attempts: 3
+   - DNS caching: Enabled (max 10000 domains)
+   - SOCKS5 proxy: Disabled
+
+Well-known domains: 173 loaded
+Disposable domains: 4765 loaded
+
+2025-11-23 18:16:04,642 - INFO - Loaded 19 unique emails from data/emails.txt
+Loaded 19 unique emails from data/emails.txt
+
+Validating 19 emails with 1000 concurrent jobs...
+Starting validation process...

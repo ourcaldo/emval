@@ -297,29 +297,20 @@ class EmailIOHandler:
         risk_wk_count: int,
         risk_other_count: int
     ):
-        """Print summary to console."""
-        print(f"\n{'='*70}")
-        print("OUTPUT SUMMARY")
-        print(f"{'='*70}")
+        """Print summary to console - Disabled for cleaner output."""
+        # Summary is now merged into VALIDATION SUMMARY in main()
+        pass
+    
+    def get_output_info(self) -> dict:
+        """
+        Get output file information for display in summary.
         
-        if valid_count > 0:
-            print(f"\nVALID (safe) emails saved to: {self.valid_output_dir}/")
-            print(f"  - {valid_wk_count} well-known domain files")
-            if valid_other_count > 0:
-                print(f"  - other.txt with {valid_other_count} emails")
-            print(f"  - Total: {valid_count} emails")
-        
-        if risk_count > 0:
-            print(f"\nRISK (catch-all) emails saved to: {self.risk_output_dir}/")
-            print(f"  - {risk_wk_count} well-known domain files")
-            if risk_other_count > 0:
-                print(f"  - other.txt with {risk_other_count} emails")
-            print(f"  - Total: {risk_count} emails")
-        
-        if invalid_count > 0:
-            print(f"\nINVALID emails saved to: {self.invalid_output}")
-            print(f"  - Total: {invalid_count} emails")
-        
-        if unknown_count > 0:
-            print(f"\nUNKNOWN (SMTP errors) emails saved to: {self.unknown_output}")
-            print(f"  - Total: {unknown_count} emails")
+        Returns:
+            Dictionary with output directory and file paths
+        """
+        return {
+            'valid_dir': self.valid_output_dir,
+            'risk_dir': self.risk_output_dir,
+            'invalid_file': self.invalid_output,
+            'unknown_file': self.unknown_output
+        }

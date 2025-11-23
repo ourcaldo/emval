@@ -26,6 +26,9 @@ class ProgressDisplay:
     def __init__(self):
         self.lines_printed = 0
         self.is_terminal = sys.stdout.isatty()
+        self.show_config = False
+        self.config_info = {}
+        self.first_display = True
     
     def clear_previous(self):
         """Move cursor up and clear previous lines"""
@@ -48,7 +51,27 @@ class ProgressDisplay:
         bar = '█' * filled + '░' * (bar_length - filled)
         
         # Build output lines matching validation summary style
-        lines = [
+        lines = []
+        
+        # Show configuration if enabled (always, not just first time)
+        if self.show_config and self.config_info:
+            lines.extend([
+                "=" * 70,
+                "VALIDATOR CONFIGURATION",
+                "=" * 70,
+                f"DNS deliverability:  {'Enabled' if self.config_info.get('dns_deliverable') else 'Disabled'}",
+                f"SMTP validation:     {'Enabled' if self.config_info.get('smtp_enabled') else 'Disabled'}",
+                f"Retry attempts:      {self.config_info.get('retry_attempts', 3)}",
+                f"DNS cache size:      {self.config_info.get('dns_cache_size', 10000)} domains",
+                f"SOCKS5 proxy:        {'Enabled (' + str(self.config_info.get('proxy_count', 0)) + ' proxies)' if self.config_info.get('proxy_enabled') else 'Disabled'}",
+                f"Well-known domains:  {self.config_info.get('well_known_domains', 0)}",
+                f"Disposable domains:  {self.config_info.get('disposable_domains', 0)}",
+                "=" * 70,
+                ""
+            ])
+        
+        # Progress display
+        lines.extend([
             "=" * 70,
             f"Progress: [{bar}] {progress:.1f}%",
             f"Status: {current}/{total} emails processed",
@@ -59,7 +82,7 @@ class ProgressDisplay:
             f"Unknown:          {unknown}",
             f"Speed:            {speed:.1f} emails/second" + (f" | ETA: {eta_str}" if eta_str else ""),
             "=" * 70,
-        ]
+        ])
         
         # Print all lines
         output = '\n'.join(lines)
@@ -101,6 +124,7 @@ def load_config(config_file: str = "config/settings.yaml") -> dict:
 def setup_logging(config: dict):
     """
     Setup logging based on configuration.
+    Only logs to file, not to console for cleaner output.
     
     Args:
         config: Configuration dictionary
@@ -108,11 +132,8 @@ def setup_logging(config: dict):
     log_config = config.get('logging', {})
     log_file = config.get('paths', {}).get('log_file', 'validator.log')
     
-    handlers = []
-    handlers.append(logging.FileHandler(log_file))
-    
-    if log_config.get('console_output', True):
-        handlers.append(logging.StreamHandler(sys.stdout))
+    # Only log to file, not to console
+    handlers = [logging.FileHandler(log_file)]
     
     logging.basicConfig(
         level=getattr(logging, log_config.get('level', 'INFO')),
@@ -219,21 +240,17 @@ def main():
         well_known_domains_file=paths_config.get('well_known_domains', 'config/well_known_domains.txt')
     )
     
-    # Print configuration
-    print("\nValidator configured with STRICT syntax rules:")
-    print(f"   - Local part: ONLY a-z A-Z 0-9 . _ (NO plus-addressing, NO hyphens, NO special chars)")
-    print(f"   - Dots/underscores: Cannot be at start or end (consecutive underscores OK)")
-    print(f"   - TLD validation: IANA list (downloaded fresh on each run)")
-    print(f"   - DNS deliverability: {'Enabled' if validation_config.get('deliverable_address') else 'Disabled'}")
-    print(f"   - SMTP validation (RCPT TO): {'Enabled' if smtp_enabled else 'Disabled'}")
-    print(f"   - Retry attempts: {retry_config.get('attempts', 3)}")
-    print(f"   - DNS caching: Enabled (max {dns_cache_config.get('max_size', 10000)} domains)")
-    if proxy_manager and proxy_manager.is_enabled():
-        print(f"   - SOCKS5 proxy: Enabled ({proxy_manager.get_proxy_count()} proxies, rate: {smtp_config.get('proxy_rate_limit', 1.0)}/proxy/sec)")
-    else:
-        print(f"   - SOCKS5 proxy: Disabled")
-    print(f"\nWell-known domains: {len(io_handler.well_known_domains)} loaded")
-    print(f"Disposable domains: {disposable_checker.get_domain_count()} loaded\n")
+    # Store configuration for display in progress
+    config_info = {
+        'dns_deliverable': validation_config.get('deliverable_address'),
+        'smtp_enabled': smtp_enabled,
+        'retry_attempts': retry_config.get('attempts', 3),
+        'dns_cache_size': dns_cache_config.get('max_size', 10000),
+        'proxy_enabled': proxy_manager and proxy_manager.is_enabled(),
+        'proxy_count': proxy_manager.get_proxy_count() if proxy_manager and proxy_manager.is_enabled() else 0,
+        'well_known_domains': len(io_handler.well_known_domains),
+        'disposable_domains': disposable_checker.get_domain_count()
+    }
     
     # Read emails with deduplication
     emails, duplicates_removed = io_handler.read_emails()
@@ -242,13 +259,10 @@ def main():
         print("Error: No emails found to validate!")
         return
     
-    print(f"Loaded {len(emails)} unique emails from {paths_config.get('input_file')}")
+    # Print minimal header
+    print(f"\nLoaded {len(emails)} unique emails from {paths_config.get('input_file')}")
     if duplicates_removed > 0:
         print(f"Removed {duplicates_removed} duplicate emails")
-    
-    # Validate emails
-    print(f"\nValidating {len(emails)} emails with {concurrent_jobs} concurrent jobs...")
-    print("Starting validation process...\n")
     
     all_results = []
     start_time = time.time()
@@ -260,8 +274,10 @@ def main():
     invalid_count = 0
     unknown_count = 0
     
-    # Initialize progress display
+    # Initialize progress display with configuration
     display = ProgressDisplay()
+    display.show_config = True  # Show config on first display
+    display.config_info = config_info
     
     # Process emails concurrently in batches
     with ThreadPoolExecutor(max_workers=concurrent_jobs) as executor:
@@ -328,7 +344,10 @@ def main():
     # Write results
     io_handler.write_results(all_results)
     
-    # Print final summary
+    # Get output file info
+    output_info = io_handler.get_output_info()
+    
+    # Print final summary (merged with output summary)
     print("\n" + "="*70)
     print("VALIDATION SUMMARY")
     print("="*70)
@@ -339,6 +358,16 @@ def main():
     print(f"Unknown:          {unknown_count}")
     print(f"Time Taken:       {elapsed_time:.2f} seconds")
     print(f"Speed:            {len(emails)/elapsed_time:.2f} emails/second")
+    print("="*70)
+    print(f"\nOutput Files:")
+    if valid_count > 0:
+        print(f"  Valid emails: {output_info['valid_dir']}/")
+    if risk_count > 0:
+        print(f"  Risk emails:  {output_info['risk_dir']}/")
+    if invalid_count > 0:
+        print(f"  Invalid:      {output_info['invalid_file']}")
+    if unknown_count > 0:
+        print(f"  Unknown:      {output_info['unknown_file']}")
     print("="*70)
     
     # Log DNS cache statistics
