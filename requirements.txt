@@ -7,3 +7,4 @@ requests
 pyyaml
 requests
 dnspython
+dnspython
