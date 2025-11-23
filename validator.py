@@ -75,7 +75,7 @@ class ProgressDisplay:
         lines.extend([
             f"Progress: [{bar}] {progress:.1f}%",
             f"Status: {current}/{total} emails processed",
-            "=" * 70,
+            "",
             f"Valid (safe):     {valid}",
             f"Risk (catch-all): {risk}",
             f"Invalid:          {invalid}",
