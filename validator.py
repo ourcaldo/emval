@@ -20,14 +20,15 @@ import logging
 
 class ProgressDisplay:
     """
-    Dynamic progress display - uses \r for terminals, regular output for pipes
-    Based on sys.stdout.isatty() detection from dynamic-progress-guide.md
+    Dynamic progress display - uses ANSI escape codes for terminals
+    Based on Method 2 from dynamic-progress-guide.md
     """
     def __init__(self):
         self.show_config = False
         self.config_info = {}
         self.config_printed = False
         self.is_terminal = sys.stdout.isatty()
+        self.lines_printed = 0
     
     def print_config(self):
         """Print configuration once before progress starts"""
@@ -46,33 +47,59 @@ class ProgressDisplay:
             print()
             self.config_printed = True
     
-    def print_progress(self, current, total, valid, risk, invalid, unknown, speed, eta_str=""):
-        """Print real-time progress for every email"""
+    def clear_previous(self):
+        """Clear previous progress lines using ANSI escape codes"""
+        if self.lines_printed > 0 and self.is_terminal:
+            # Move cursor up N lines
+            sys.stdout.write(f'\033[{self.lines_printed}A')
+            # Clear from cursor to end of screen
+            sys.stdout.write('\033[J')
+    
+    def print_progress(self, current, total, valid, risk, invalid, unknown, speed, time_taken, eta_str=""):
+        """Print real-time progress in clean summary format"""
         # Config on first call
         if not self.config_printed:
             self.print_config()
+        
+        # Clear previous progress display
+        self.clear_previous()
         
         progress = (current / total) * 100
         bar_length = 40
         filled = int(bar_length * current // total)
         bar = '█' * filled + '░' * (bar_length - filled)
         
-        status = (
-            f"[{bar}] {current}/{total} ({progress:.1f}%) | "
-            f"Valid: {valid} | Risk: {risk} | Invalid: {invalid} | Unknown: {unknown} | "
-            f"Speed: {speed:.1f}/s"
-        )
-        if eta_str:
-            status += f" | ETA: {eta_str}"
+        # Build clean summary format
+        lines = [
+            "=" * 70,
+            f"PROGRESS [{bar}] {progress:.1f}%",
+            "",
+            f"Total Emails:     {total}",
+            f"Valid (safe):     {valid}",
+            f"Risk (catch-all): {risk}",
+            f"Invalid:          {invalid}",
+            f"Unknown:          {unknown}",
+            f"Time Taken:       {time_taken:.2f} seconds",
+            f"Speed:            {speed:.2f} emails/second",
+            "=" * 70
+        ]
         
-        # Print without \r to avoid corrupting logs
-        print(status, flush=True)
+        # Print all lines
+        output = '\n'.join(lines)
+        print(output, flush=True)
+        
+        # Remember how many lines we printed
+        self.lines_printed = len(lines)
     
     def finish(self):
-        """Move to next line after progress completes"""
+        """Finish progress display and move to next line"""
         if self.is_terminal:
-            print()  # Move to next line
-        print("=" * 70)
+            # Just print a newline for terminal to separate from summary
+            print()
+        else:
+            # For logs, keep the last progress visible
+            pass
+        self.lines_printed = 0
 
 # Load configuration from YAML file
 def load_config(config_file: str = "config/settings.yaml") -> dict:
@@ -309,6 +336,7 @@ def main():
                     invalid=invalid_count,
                     unknown=unknown_count,
                     speed=speed,
+                    time_taken=elapsed,
                     eta_str=eta_str
                 )
     
