@@ -15,7 +15,16 @@ retry:
 dns_cache:
   max_size: 10000    # Maximum number of domains to cache
 
-# Network Configuration (for HTTP DNS API)
+# DNS Configuration (for Local DNS Resolution)
+dns:
+  timeout: 5                # DNS query timeout in seconds
+  max_retries: 3            # Maximum retry attempts for DNS queries
+  retry_delay: 0.5          # Delay between retries in seconds
+  # DNS servers to use (leave empty for default: Google, Cloudflare, OpenDNS)
+  # You can customize with your own DNS servers for privacy/performance
+  servers: []               # Example: ["8.8.8.8", "1.1.1.1"]
+  
+# Legacy Network Configuration (deprecated - kept for backward compatibility)
 network:
   timeout: 10               # Request timeout in seconds
   max_retries: 3            # Maximum retry attempts for API requests

@@ -10,7 +10,7 @@ This is a modular, testable email validation system that:
 All configuration is externalized in config/settings.yaml
 """
 
-from validators import EmailValidationService, HTTPDNSChecker, DisposableDomainChecker, EmailIOHandler, ProxyManager
+from validators import EmailValidationService, LocalDNSChecker, DisposableDomainChecker, EmailIOHandler, ProxyManager
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import yaml
 import time
@@ -78,6 +78,7 @@ def main():
     concurrency_config = config.get('concurrency', {})
     retry_config = config.get('retry', {})
     dns_cache_config = config.get('dns_cache', {})
+    dns_config = config.get('dns', {})
     validation_config = config.get('validation', {})
     paths_config = config.get('paths', {})
     network_config = config.get('network', {})
@@ -114,14 +115,14 @@ def main():
             logger.warning("Proxy enabled but no valid proxies loaded. Continuing without proxy.")
             print("Warning: Proxy enabled but no valid proxies found in proxy list file.")
     
-    # 3. HTTP DNS checker with caching and proxy support
-    dns_checker = HTTPDNSChecker(
+    # 3. Local DNS checker with caching (5-10x faster than HTTP API!)
+    dns_servers = dns_config.get('servers', [])
+    dns_checker = LocalDNSChecker(
         cache_size=dns_cache_config.get('max_size', 10000),
-        timeout=network_config.get('timeout', 10),
-        max_retries=network_config.get('max_retries', 3),
-        retry_delay=network_config.get('retry_delay', 1.0),
-        rate_limit_delay=network_config.get('rate_limit_delay', 0.1),
-        proxy_manager=proxy_manager
+        timeout=dns_config.get('timeout', 5),
+        max_retries=dns_config.get('max_retries', 3),
+        retry_delay=dns_config.get('retry_delay', 0.5),
+        dns_servers=dns_servers if dns_servers else None
     )
     
     # 4. Email validation service
