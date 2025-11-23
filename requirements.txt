@@ -4,3 +4,5 @@ dnspython>=2.8.0
 pysocks>=1.7.1
 dnspython
 pysocks
+dnspython
+pysocks
