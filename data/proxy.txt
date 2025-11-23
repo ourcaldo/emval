@@ -1,22 +1,24 @@
-# Proxy List Configuration
+# SOCKS5 Proxy List Configuration
 # 
-# This file contains a list of proxies used for rotating HTTP requests.
-# Proxies are automatically rotated in round-robin fashion.
+# This file contains a list of SOCKS5 proxies used for SMTP validation.
+# Proxies are automatically rotated in round-robin fashion with rate limiting (1 request/proxy/second).
 #
 # Supported Formats (one proxy per line):
-# 1. host:port              - Proxy without authentication
-# 2. host:port@user:pass    - Proxy with authentication
+# 1. host:port                    - Proxy without authentication
+# 2. host:port@username:password  - Proxy with authentication
 #
 # Examples:
-# 192.168.1.100:8080
-# proxy.example.com:3128
-# 10.0.0.50:8080@username:password
-# proxy-server.net:9050@myuser:mypass123
+# 192.168.1.100:1080
+# proxy.example.com:1080
+# 149.81.34.182:1080@myuser:mypass123
+# socks5-server.net:9050@username:password
 #
 # Notes:
 # - Empty lines and lines starting with # are ignored
 # - Invalid proxy formats will be logged as warnings
-# - Enable proxy in config/settings.yaml by setting network.proxy to true
+# - Must be SOCKS5 proxies (HTTP proxies won't work for SMTP connections)
+# - Enable proxy in config/settings.yaml by setting smtp.use_proxy to true
+# - Rate limiting: 1 request per proxy per second (configurable in config)
 #
-# Add your proxies below (one per line):
+# Add your SOCKS5 proxies below (one per line):
 

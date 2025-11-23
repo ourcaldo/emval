@@ -70,7 +70,7 @@ class ProxyManager:
         
         Supported formats:
         - host:port
-        - host:port:user:password
+        - host:port@username:password
         
         Args:
             proxy_str: Proxy string
@@ -79,19 +79,33 @@ class ProxyManager:
             Proxy dictionary with host, port, username, password, and last_used timestamp
         """
         try:
-            parts = proxy_str.split(':')
+            username = None
+            password = None
             
-            if len(parts) == 2:
-                host, port = parts
-                username = None
-                password = None
-            elif len(parts) == 4:
-                host, port, username, password = parts
+            # Check if authentication is present (format: host:port@username:password)
+            if '@' in proxy_str:
+                server_part, auth_part = proxy_str.split('@', 1)
+                
+                # Parse authentication
+                if ':' in auth_part:
+                    username, password = auth_part.split(':', 1)
+                else:
+                    return None  # Invalid auth format
             else:
+                server_part = proxy_str
+            
+            # Parse server part (host:port)
+            if ':' not in server_part:
                 return None
             
+            parts = server_part.split(':')
+            if len(parts) != 2:
+                return None
+            
+            host, port_str = parts
+            
             try:
-                port = int(port)
+                port = int(port_str)
             except ValueError:
                 return None
             
