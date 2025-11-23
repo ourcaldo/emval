@@ -47,19 +47,18 @@ class ProgressDisplay:
         filled = int(bar_length * current // total)
         bar = '█' * filled + '░' * (bar_length - filled)
         
-        # Build output lines
+        # Build output lines matching validation summary style
         lines = [
-            "=" * 60,
+            "=" * 70,
             f"Progress: [{bar}] {progress:.1f}%",
             f"Status: {current}/{total} emails processed",
-            "",
-            f"✓ Valid:   {valid:>6}",
-            f"⚠ Risk:    {risk:>6}",
-            f"✗ Invalid: {invalid:>6}",
-            f"? Unknown: {unknown:>6}",
-            "",
-            f"Speed: {speed:.1f} emails/sec" + (f" | ETA: {eta_str}" if eta_str else ""),
-            "=" * 60,
+            "=" * 70,
+            f"Valid (safe):     {valid}",
+            f"Risk (catch-all): {risk}",
+            f"Invalid:          {invalid}",
+            f"Unknown:          {unknown}",
+            f"Speed:            {speed:.1f} emails/second" + (f" | ETA: {eta_str}" if eta_str else ""),
+            "=" * 70,
         ]
         
         # Print all lines
