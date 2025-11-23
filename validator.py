@@ -47,10 +47,26 @@ class ProgressDisplay:
             self.config_printed = True
     
     def print_progress(self, current, total, valid, risk, invalid, unknown, speed, eta_str=""):
-        """Progress updates disabled - final summary provides all information"""
-        # Config only shown once if needed
-        if not self.config_printed and self.show_config and self.config_info:
+        """Print real-time progress for every email"""
+        # Config on first call
+        if not self.config_printed:
             self.print_config()
+        
+        progress = (current / total) * 100
+        bar_length = 40
+        filled = int(bar_length * current // total)
+        bar = '█' * filled + '░' * (bar_length - filled)
+        
+        status = (
+            f"[{bar}] {current}/{total} ({progress:.1f}%) | "
+            f"Valid: {valid} | Risk: {risk} | Invalid: {invalid} | Unknown: {unknown} | "
+            f"Speed: {speed:.1f}/s"
+        )
+        if eta_str:
+            status += f" | ETA: {eta_str}"
+        
+        # Print without \r to avoid corrupting logs
+        print(status, flush=True)
     
     def finish(self):
         """Move to next line after progress completes"""
