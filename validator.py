@@ -140,20 +140,16 @@ def main():
         )
         logger.info("SMTP validator initialized for RCPT TO and catch-all detection")
     
-    # 5. Email validation service
+    # 5. Email validation service (with strict syntax validation)
     validation_service = EmailValidationService(
         disposable_checker=disposable_checker,
         dns_checker=dns_checker,
         smtp_validator=smtp_validator,
         retry_attempts=retry_config.get('attempts', 3),
         retry_delay=retry_config.get('delay', 0.5),
-        allow_smtputf8=validation_config.get('allow_smtputf8', False),
-        allow_empty_local=validation_config.get('allow_empty_local', False),
-        allow_quoted_local=validation_config.get('allow_quoted_local', False),
-        allow_domain_literal=validation_config.get('allow_domain_literal', False),
         deliverable_address=validation_config.get('deliverable_address', True),
         smtp_validation=smtp_enabled,
-        allowed_special_domains=validation_config.get('allowed_special_domains', [])
+        download_tld_list=True  # Download fresh IANA TLD list on each run
     )
     
     # 6. I/O handler
@@ -167,12 +163,10 @@ def main():
     )
     
     # Print configuration
-    print("\nValidator configured:")
-    print(f"   - Unicode characters: {'Allowed' if validation_config.get('allow_smtputf8') else 'Not allowed'}")
-    print(f"   - Empty local parts: {'Allowed' if validation_config.get('allow_empty_local') else 'Not allowed'}")
-    print(f"   - Quoted strings: {'Allowed' if validation_config.get('allow_quoted_local') else 'Not allowed'}")
-    print(f"   - IP addresses: {'Allowed' if validation_config.get('allow_domain_literal') else 'Not allowed'}")
-    print(f"   - Plus-addressing: Provider-aware (rejected for Gmail/Google, allowed for others)")
+    print("\nValidator configured with STRICT syntax rules:")
+    print(f"   - Local part: ONLY a-z A-Z 0-9 . _ (NO plus-addressing, NO hyphens, NO special chars)")
+    print(f"   - Dots/underscores: Cannot be at start or end (consecutive underscores OK)")
+    print(f"   - TLD validation: IANA list (downloaded fresh on each run)")
     print(f"   - DNS deliverability: {'Enabled' if validation_config.get('deliverable_address') else 'Disabled'}")
     print(f"   - SMTP validation (RCPT TO): {'Enabled' if smtp_enabled else 'Disabled'}")
     print(f"   - Retry attempts: {retry_config.get('attempts', 3)}")

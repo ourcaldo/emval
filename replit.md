@@ -14,7 +14,12 @@ The tool is a Command-Line Interface (CLI) application, focusing on functional e
 
 **Technical Implementations & Feature Specifications:**
 *   **Validation Pipeline:** Emails pass through a sequential validation pipeline: Syntax -> Disposable Domain Check -> DNS Resolution -> (Optional) SMTP RCPT TO -> (Optional) Catch-all Detection.
-*   **Syntax Validation:** Self-hosted RFC 5322 compliant.
+*   **Syntax Validation:** Strict custom rules (stricter than RFC 5322):
+    *   **Local Part (before @):** ONLY allows letters (a-z A-Z), numbers (0-9), dots (.), and underscores (_). NO plus-addressing (+), NO hyphens (-), NO other special characters.
+    *   **Position Rules:** Dots and underscores cannot be at start or end of local part. No consecutive dots allowed. Consecutive underscores ARE allowed.
+    *   **Domain Part (after @):** Standard format with labels containing letters, numbers, hyphens (not at start/end).
+    *   **TLD Validation:** Minimum 2 characters, letters only, validated against official IANA TLD list (downloaded fresh on each run from https://data.iana.org/TLD/tlds-alpha-by-domain.txt).
+    *   **Examples:** ✅ user@example.com, user_name@example.com, user__test@example.com, user._name@example.com | ❌ user+tag@example.com, user-name@example.com, _user@example.com, user_@example.com
 *   **DNS Resolution:** Local DNS resolution using `dnspython` for MX records, significantly faster than API calls. Supports multi-provider DNS with fallback (Google, Cloudflare, OpenDNS) and smart LRU caching for definitive results (up to 10,000 domains).
 *   **SMTP Validation:** Optional RCPT TO validation with SOCKS5 proxy support, including mailbox existence verification and catch-all domain detection using random address probing. Features thread-safe rate limiting (1 request/proxy/second) and multi-port support (25, 587).
 *   **Disposable Email Blocking:** Utilizes a blocklist of over 4,765 disposable domains.
@@ -39,5 +44,6 @@ The tool is a Command-Line Interface (CLI) application, focusing on functional e
 *   **Configuration/Data Files:**
     *   `config/settings.yaml`: Main configuration file.
     *   `config/well_known_domains.txt`: List of popular email providers for categorization.
-    *   `data/proxy.txt`: SOCKS5 proxy list (optional, for SMTP validation).
+    *   `data/proxy.txt`: SOCKS5 proxy list (format: host:port or host:port@username:password, optional for SMTP validation).
     *   `data/disposable_domains.txt`: Blocklist for disposable email addresses.
+    *   `data/tlds-alpha-by-domain.txt`: IANA TLD list (auto-downloaded on each run, cached locally).

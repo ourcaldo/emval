@@ -22,13 +22,11 @@ class EmailValidationService:
     - invalid: Failed at any validation step
     - unknown: Passed basic validation but error during SMTP validation
     
-    Plus-addressing is provider-aware:
-    - Rejected for Gmail/Google domains (gmail.com, googlemail.com, google.com)
-    - Allowed for all other domains
+    Strict Syntax Rules:
+    - Local part: ONLY a-z A-Z 0-9 . _ (NO plus-addressing, NO hyphens, NO special chars)
+    - Dots and underscores cannot be at start or end
+    - TLD validated against IANA list (downloaded fresh on each run)
     """
-    
-    # Gmail/Google domains where plus-addressing is not allowed
-    GMAIL_DOMAINS = {'gmail.com', 'googlemail.com', 'google.com'}
     
     def __init__(
         self,
@@ -37,13 +35,9 @@ class EmailValidationService:
         smtp_validator=None,
         retry_attempts: int = 3,
         retry_delay: float = 0.5,
-        allow_smtputf8: bool = False,
-        allow_empty_local: bool = False,
-        allow_quoted_local: bool = False,
-        allow_domain_literal: bool = False,
         deliverable_address: bool = True,
         smtp_validation: bool = True,
-        allowed_special_domains: Optional[List[str]] = None
+        download_tld_list: bool = True
     ):
         """
         Initialize email validation service.
@@ -54,15 +48,9 @@ class EmailValidationService:
             smtp_validator: SMTPValidator instance for RCPT TO validation (optional)
             retry_attempts: Number of retry attempts for DNS failures
             retry_delay: Delay between retries in seconds
-            allow_smtputf8: Allow Unicode characters
-            allow_empty_local: Allow empty local parts
-            allow_quoted_local: Allow quoted strings
-            allow_domain_literal: Allow IP addresses as domains
             deliverable_address: Enable DNS deliverability checks
             smtp_validation: Enable SMTP RCPT TO validation
-            allowed_special_domains: List of special-use domains to allow
-        
-        Note: Plus-addressing is handled with provider-aware logic (rejected only for Gmail/Google).
+            download_tld_list: Download fresh IANA TLD list on initialization (default: True)
         """
         self.disposable_checker = disposable_checker
         self.dns_checker = dns_checker
@@ -72,19 +60,13 @@ class EmailValidationService:
         self.deliverable_address = deliverable_address
         self.smtp_validation = smtp_validation
         
-        # Initialize syntax validator
-        self.syntax_validator = EmailSyntaxValidator(
-            allow_smtputf8=allow_smtputf8,
-            allow_empty_local=allow_empty_local,
-            allow_quoted_local=allow_quoted_local,
-            allow_domain_literal=allow_domain_literal,
-            allowed_special_domains=allowed_special_domains or []
-        )
+        # Initialize syntax validator with strict rules
+        self.syntax_validator = EmailSyntaxValidator(download_tld_list=download_tld_list)
         
         logger.info("EmailValidationService initialized")
         logger.info(f"Retry attempts: {retry_attempts}, Retry delay: {retry_delay}s")
         logger.info(f"SMTP validation: {'Enabled' if smtp_validation and smtp_validator else 'Disabled'}")
-        logger.info(f"Plus-addressing: Rejected for {self.GMAIL_DOMAINS}, allowed for other domains")
+        logger.info("Strict syntax: NO plus-addressing, NO hyphens in local part, TLD validated against IANA list")
     
     def validate(self, email: str) -> Tuple[str, bool, str, str]:
         """
@@ -111,18 +93,11 @@ class EmailValidationService:
             logger.debug("Empty email encountered")
             return (email, False, "Empty email", "invalid")
         
-        # Step 1: Syntax validation
+        # Step 1: Syntax validation (strict rules: NO +, NO -, dots/underscores not at start/end, IANA TLD validation)
         is_valid_syntax, syntax_error = self.syntax_validator.validate(email)
         if not is_valid_syntax:
             logger.debug(f"Step 1 FAIL - Syntax: {email} - {syntax_error}")
             return (email, False, syntax_error, "invalid")
-        
-        # Step 1.5: Provider-aware plus-addressing check
-        if '+' in email:
-            domain = self.syntax_validator.extract_domain(email)
-            if domain and domain in self.GMAIL_DOMAINS:
-                logger.debug(f"Step 1 FAIL - Plus-addressing rejected: {email}")
-                return (email, False, "Plus-addressing not allowed for Gmail/Google", "invalid")
         
         logger.debug(f"Step 1 PASS - Syntax: {email}")
         
