@@ -29,6 +29,7 @@ class ProgressDisplay:
         self.config_printed = False
         self.is_terminal = sys.stdout.isatty()
         self.lines_printed = 0
+        self.last_printed_percent = -1
     
     def print_config(self):
         """Print configuration once before progress starts"""
@@ -61,10 +62,18 @@ class ProgressDisplay:
         if not self.config_printed:
             self.print_config()
         
-        # Clear previous progress display
+        progress = (current / total) * 100
+        
+        # For non-terminal (logs), only print at 100% or if this is the last email
+        # This prevents spamming the logs with every update
+        if not self.is_terminal:
+            # Only print the final progress (100%)
+            if current != total:
+                return
+        
+        # Clear previous progress display (only works in terminal)
         self.clear_previous()
         
-        progress = (current / total) * 100
         bar_length = 40
         filled = int(bar_length * current // total)
         bar = '█' * filled + '░' * (bar_length - filled)

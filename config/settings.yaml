@@ -3,8 +3,8 @@
 
 # Concurrent Processing Settings
 concurrency:
-  max_workers: 1000  # Number of concurrent validation jobs
-  batch_size: 1000   # Number of emails to process per batch
+  max_workers: 1  # Number of concurrent validation jobs
+  batch_size: 1   # Number of emails to process per batch
 
 # Retry Configuration
 retry:
