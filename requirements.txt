@@ -6,3 +6,4 @@ pyyaml
 requests
 pyyaml
 requests
+dnspython
