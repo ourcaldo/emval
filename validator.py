@@ -53,12 +53,14 @@ class ProgressDisplay:
         # Build output lines matching validation summary style
         lines = []
         
-        # Show configuration if enabled (always, not just first time)
+        # Unified section with configuration and progress
+        lines.append("=" * 70)
+        
+        # Show configuration if enabled
         if self.show_config and self.config_info:
             lines.extend([
-                "=" * 70,
                 "VALIDATOR CONFIGURATION",
-                "=" * 70,
+                "",
                 f"DNS deliverability:  {'Enabled' if self.config_info.get('dns_deliverable') else 'Disabled'}",
                 f"SMTP validation:     {'Enabled' if self.config_info.get('smtp_enabled') else 'Disabled'}",
                 f"Retry attempts:      {self.config_info.get('retry_attempts', 3)}",
@@ -66,13 +68,11 @@ class ProgressDisplay:
                 f"SOCKS5 proxy:        {'Enabled (' + str(self.config_info.get('proxy_count', 0)) + ' proxies)' if self.config_info.get('proxy_enabled') else 'Disabled'}",
                 f"Well-known domains:  {self.config_info.get('well_known_domains', 0)}",
                 f"Disposable domains:  {self.config_info.get('disposable_domains', 0)}",
-                "=" * 70,
                 ""
             ])
         
         # Progress display
         lines.extend([
-            "=" * 70,
             f"Progress: [{bar}] {progress:.1f}%",
             f"Status: {current}/{total} emails processed",
             "=" * 70,

@@ -2,7 +2,7 @@
 File I/O operations module for email validation.
 """
 
-from typing import List, Tuple, Dict, Set
+from typing import List, Tuple, Dict, Set, Sequence
 import os
 import re
 import logging
@@ -166,7 +166,7 @@ class EmailIOHandler:
     
     def _write_category_emails(
         self,
-        emails: List[Tuple[str, str, str]],
+        emails: Sequence[Tuple[str, str, str]],
         output_dir: str,
         category_name: str
     ) -> Tuple[int, int]:
@@ -254,7 +254,7 @@ class EmailIOHandler:
     
     def _write_single_file_category(
         self,
-        emails: List[Tuple[str, str, str]],
+        emails: Sequence[Tuple[str, str, str]],
         output_file: str,
         category_name: str
     ):
