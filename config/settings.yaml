@@ -63,7 +63,7 @@ paths:
   risk_output_dir: "output/risk"
   invalid_output: "output/invalid.txt"
   unknown_output: "output/unknown.txt"
-  log_file: "validator.log"
+  log_file: "log/validator.log"
 
 # Logging Configuration
 logging:
