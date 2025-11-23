@@ -3,8 +3,16 @@
 ### Overview
 The Bulk Email Validator is a high-performance, self-hosted Python CLI tool designed for efficient bulk email validation. Its primary purpose is to verify email addresses for deliverability and quality, supporting various business applications requiring clean email lists. Key capabilities include RFC 5322 syntax validation, local DNS resolution for MX records, optional SMTP RCPT TO validation with catch-all domain detection, disposable email blocking, and automatic deduplication. The project aims to provide a fast, reliable, and privacy-focused alternative to API-based validation services, offering a significant performance advantage and full control over the validation process.
 
+### Recent Changes
+**November 23, 2025**: Enhanced terminal progress display
+- Implemented dynamic multi-line dashboard-style progress display using ANSI escape codes
+- Replaced simple single-line progress with a clean, compact visual dashboard
+- Features: progress bar with filled/unfilled blocks (█/░), categorized statistics with icons (✓ ⚠ ✗ ?), real-time speed and ETA
+- Updates in place instead of appending lines, making output easier to read
+- Automatically detects terminal support and gracefully handles non-interactive output
+
 ### User Preferences
-None specified yet.
+- Prefers clean, compact terminal output with visual progress bars over verbose line-by-line updates
 
 ### System Architecture
 The project employs a modular, self-hosted architecture built with Python 3.11.

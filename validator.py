@@ -17,6 +17,64 @@ import time
 import sys
 import logging
 
+
+class ProgressDisplay:
+    """
+    Multi-line dynamic progress display using ANSI escape codes
+    Creates a dashboard-style display that updates in place
+    """
+    def __init__(self):
+        self.lines_printed = 0
+        self.is_terminal = sys.stdout.isatty()
+    
+    def clear_previous(self):
+        """Move cursor up and clear previous lines"""
+        if self.lines_printed > 0 and self.is_terminal:
+            # Move cursor up N lines
+            sys.stdout.write(f'\033[{self.lines_printed}A')
+            # Clear from cursor to end of screen
+            sys.stdout.write('\033[J')
+    
+    def print_progress(self, current, total, valid, risk, invalid, unknown, speed, eta_str=""):
+        """Print multi-line progress display"""
+        # Clear previous output
+        self.clear_previous()
+        
+        progress = (current / total) * 100
+        
+        # Create progress bar
+        bar_length = 40
+        filled = int(bar_length * current // total)
+        bar = '█' * filled + '░' * (bar_length - filled)
+        
+        # Build output lines
+        lines = [
+            "=" * 60,
+            f"Progress: [{bar}] {progress:.1f}%",
+            f"Status: {current}/{total} emails processed",
+            "",
+            f"✓ Valid:   {valid:>6}",
+            f"⚠ Risk:    {risk:>6}",
+            f"✗ Invalid: {invalid:>6}",
+            f"? Unknown: {unknown:>6}",
+            "",
+            f"Speed: {speed:.1f} emails/sec" + (f" | ETA: {eta_str}" if eta_str else ""),
+            "=" * 60,
+        ]
+        
+        # Print all lines
+        output = '\n'.join(lines)
+        print(output, flush=True)
+        
+        # Remember how many lines we printed for next clear
+        self.lines_printed = len(lines)
+    
+    def finish(self):
+        """Call this when progress is complete to ensure cursor moves to next line"""
+        if self.is_terminal:
+            # Just ensure we're on a new line
+            print()
+
 # Load configuration from YAML file
 def load_config(config_file: str = "config/settings.yaml") -> dict:
     """
@@ -203,6 +261,9 @@ def main():
     invalid_count = 0
     unknown_count = 0
     
+    # Initialize progress display
+    display = ProgressDisplay()
+    
     # Process emails concurrently in batches
     with ThreadPoolExecutor(max_workers=concurrent_jobs) as executor:
         for batch_start in range(0, len(emails), batch_size):
@@ -234,7 +295,6 @@ def main():
                 
                 # Calculate and display progress
                 current_time = time.time()
-                percentage = (completed * 100.0) / len(emails)
                 elapsed = current_time - start_time
                 speed = completed / elapsed if elapsed > 0 else 0
                 
@@ -248,16 +308,20 @@ def main():
                 else:
                     eta_str = "calculating..."
                 
-                # Print progress (same line with carriage return)
-                print(
-                    f"{completed}/{len(emails)} - {percentage:.1f}% | "
-                    f"Valid: {valid_count} | Risk: {risk_count} | Invalid: {invalid_count} | Unknown: {unknown_count} | "
-                    f"Speed: {speed:.1f}/sec | ETA: {eta_str}",
-                    end='\r',
-                    flush=True
+                # Display dynamic progress dashboard
+                display.print_progress(
+                    current=completed,
+                    total=len(emails),
+                    valid=valid_count,
+                    risk=risk_count,
+                    invalid=invalid_count,
+                    unknown=unknown_count,
+                    speed=speed,
+                    eta_str=eta_str
                 )
     
-    print()  # New line after progress
+    # Finish progress display and move to next line
+    display.finish()
     elapsed_time = time.time() - start_time
     
     logger.info(f"Validation completed: Valid={valid_count}, Risk={risk_count}, Invalid={invalid_count}, Unknown={unknown_count}")
