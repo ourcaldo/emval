@@ -42,7 +42,7 @@ validation:
 
 # SMTP Validation Settings (for RCPT TO and Catch-all Detection)
 smtp:
-  enabled: false              # Enable/disable SMTP validation (set to true once you add SOCKS5 proxies)
+  enabled: true              # Enable/disable SMTP validation (set to true once you add SOCKS5 proxies)
   timeout: 10                 # SMTP connection timeout in seconds
   max_retries: 2              # Maximum retry attempts for SMTP errors
   from_email: "verify@example.com"  # Email to use in MAIL FROM command
