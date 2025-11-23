@@ -222,44 +222,56 @@ class SMTPValidator:
                 logger.debug(f"Failed SMTP handshake with {mx_server}: {e}")
                 return 'unknown', 0, f"SMTP handshake failed: {str(e)}", False
             
+            # Step 4: Validate the REAL email FIRST using RCPT TO
+            code, message = self._check_rcpt_to(smtp, email)
+            
+            # If real email is invalid, return immediately
+            if code in self.INVALID_CODES or code == self.MAILBOX_FULL_CODE:
+                smtp.quit()
+                status = 'invalid'
+                if code == self.MAILBOX_FULL_CODE:
+                    message = f"Mailbox full: {message}"
+                logger.debug(f"Step 4 FAIL - SMTP RCPT TO: {email} - {status} (code: {code})")
+                return status, code, message, False
+            
+            # If real email check returned temporary error or ambiguous response
+            if code in self.TEMPORARY_ERROR_CODES or code == self.AMBIGUOUS_CODE or code not in self.VALID_CODES:
+                smtp.quit()
+                status = 'unknown'
+                if code == self.AMBIGUOUS_CODE:
+                    message = f"Ambiguous response: {message}"
+                elif code in self.TEMPORARY_ERROR_CODES:
+                    message = f"Temporary error: {message}"
+                else:
+                    message = f"Unknown code {code}: {message}"
+                logger.debug(f"Step 4 UNKNOWN - SMTP RCPT TO: {email} - {status} (code: {code})")
+                return status, code, message, False
+            
+            # Step 5: Real email is valid (250/251), now check for catch-all
             is_catchall = False
             
             if check_catchall:
                 domain = email.split('@')[1]
                 random_email = self._generate_random_email(domain)
                 
-                code, message = self._check_rcpt_to(smtp, random_email)
+                catchall_code, catchall_message = self._check_rcpt_to(smtp, random_email)
                 
-                if code in self.VALID_CODES:
-                    logger.debug(f"Catch-all detected for {domain} (random email accepted)")
+                if catchall_code in self.VALID_CODES:
+                    logger.debug(f"Step 5 FAIL - Catch-all detected for {domain} (random email accepted)")
                     is_catchall = True
                     smtp.quit()
-                    return 'catch-all', code, 'Catch-all enabled', True
+                    # Real email is valid BUT catch-all is enabled → RISK
+                    return 'catch-all', code, 'Valid but catch-all enabled (risky)', True
+                else:
+                    logger.debug(f"Step 5 PASS - Catch-all: {domain} - Not a catch-all domain")
             
-            code, message = self._check_rcpt_to(smtp, email)
-            
+            # Real email is valid AND catch-all is NOT detected → VALID (safe)
             smtp.quit()
             
-            if code in self.VALID_CODES:
-                status = 'valid'
-            elif code in self.INVALID_CODES:
-                status = 'invalid'
-            elif code == self.MAILBOX_FULL_CODE:
-                status = 'invalid'
-                message = f"Mailbox full: {message}"
-            elif code == self.AMBIGUOUS_CODE:
-                status = 'unknown'
-                message = f"Ambiguous response: {message}"
-            elif code in self.TEMPORARY_ERROR_CODES:
-                status = 'unknown'
-                message = f"Temporary error: {message}"
-            else:
-                status = 'unknown'
-                message = f"Unknown code {code}: {message}"
+            logger.debug(f"Step 4 PASS - SMTP RCPT TO: {email} - Mailbox exists (code: {code})")
+            logger.debug(f"SMTP validation result for {email}: valid (code: {code})")
             
-            logger.debug(f"SMTP validation result for {email}: {status} (code: {code})")
-            
-            return status, code, message, is_catchall
+            return 'valid', code, message, is_catchall
         
         except Exception as e:
             logger.error(f"SMTP validation error for {email}: {e}")
