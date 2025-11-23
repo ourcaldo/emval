@@ -1,89 +1,100 @@
 # ============================================================================
 # EMAIL VALIDATOR CONFIGURATION FILE
 # ============================================================================
-# All settings can be customized here instead of hardcoding in source
-
-
+#
+# OVERVIEW:
+# All settings can be customized here instead of hardcoding in source.
+# This validator uses local DNS resolution via dnspython (5-10x faster than HTTP APIs!)
+# The old HTTP DNS API configuration has been removed.
+# If you need the legacy HTTP API, check validators/http_dns_checker.py
+#
 # ============================================================================
-# CONCURRENT PROCESSING SETTINGS
+# SECTION DOCUMENTATION
 # ============================================================================
-# max_workers: Number of concurrent validation jobs
-# batch_size: Number of emails to process per batch
+#
+# CONCURRENCY:
+#   max_workers: Number of concurrent validation jobs
+#   batch_size: Number of emails to process per batch
+#
+# RETRY:
+#   attempts: Number of retry attempts for DNS failures
+#   delay: Delay between retries in seconds
+#
+# DNS_CACHE:
+#   max_size: Maximum number of domains to cache
+#
+# DNS:
+#   timeout: DNS query timeout in seconds
+#   max_retries: Maximum retry attempts for DNS queries
+#   retry_delay: Delay between retries in seconds
+#   servers: DNS servers to use
+#            Leave empty for default: Google (8.8.8.8, 8.8.4.4), 
+#            Cloudflare (1.1.1.1, 1.0.0.1), OpenDNS (208.67.222.222, 208.67.220.220)
+#            You can customize with your own DNS servers for privacy/performance
+#            Example: ["8.8.8.8", "1.1.1.1"]
+#
+# VALIDATION:
+#   deliverable_address: Enable DNS deliverability checks (MX/A records)
+#   smtp_validation: Enable SMTP RCPT TO validation (Step 4 & 5)
+#                    NOTE: Both validation.smtp_validation AND smtp.enabled 
+#                    must be true for SMTP validation to work
+#
+#   STRICT SYNTAX RULES (enforced in EmailSyntaxValidator):
+#   - Local part: ONLY a-z A-Z 0-9 . _ (NO plus-addressing, NO hyphens, NO other special chars)
+#   - Dots and underscores cannot be at start or end of local part
+#   - No consecutive dots
+#   - TLD: Minimum 2 characters, letters only, validated against IANA TLD list
+#   - IANA TLD list downloaded fresh on each run from https://data.iana.org/TLD/tlds-alpha-by-domain.txt
+#
+# SMTP:
+#   enabled: Enable/disable SMTP validation component
+#            NOTE: Set to true once you add SOCKS5 proxies to data/proxy.txt
+#            Both validation.smtp_validation AND smtp.enabled must be true
+#   timeout: SMTP connection timeout in seconds
+#   max_retries: Maximum retry attempts for SMTP errors
+#   from_email: Email to use in MAIL FROM command
+#   use_proxy: Use SOCKS5 proxy for SMTP connections
+#   proxy_rate_limit: Rate limit in seconds (1 request per proxy per second)
+#
+# PATHS:
+#   disposable_domains: Path to disposable domains blocklist
+#   well_known_domains: Path to well-known email providers list
+#   proxy_list: Path to SOCKS5 proxy list
+#   input_file: Path to input emails file
+#   valid_output_dir: Directory for valid emails
+#   risk_output_dir: Directory for risky emails (catch-all domains)
+#   invalid_output: Path to invalid emails file
+#   unknown_output: Path to unknown emails file (SMTP errors)
+#   log_file: Path to log file
+#
+# LOGGING:
+#   level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+#   format: Log message format
+#   console_output: Whether to also log to console (currently only logs to file)
+#
+# ============================================================================
+
 concurrency:
   max_workers: 1
   batch_size: 1
 
-
-# ============================================================================
-# RETRY CONFIGURATION
-# ============================================================================
-# attempts: Number of retry attempts for DNS failures
-# delay: Delay between retries in seconds
 retry:
   attempts: 3
   delay: 0.5
 
-
-# ============================================================================
-# DNS CACHE SETTINGS
-# ============================================================================
-# max_size: Maximum number of domains to cache
 dns_cache:
   max_size: 10000
 
-
-# ============================================================================
-# DNS CONFIGURATION (Local DNS Resolution)
-# ============================================================================
-# timeout: DNS query timeout in seconds
-# max_retries: Maximum retry attempts for DNS queries
-# retry_delay: Delay between retries in seconds
-# servers: DNS servers to use
-#          Leave empty for default: Google (8.8.8.8, 8.8.4.4), 
-#          Cloudflare (1.1.1.1, 1.0.0.1), OpenDNS (208.67.222.222, 208.67.220.220)
-#          You can customize with your own DNS servers for privacy/performance
-#          Example: ["8.8.8.8", "1.1.1.1"]
-#
-# NOTE: The old HTTP DNS API configuration has been removed.
-#       This validator now uses local DNS resolution via dnspython (5-10x faster!)
-#       If you need the legacy HTTP API, check validators/http_dns_checker.py
 dns:
   timeout: 5
   max_retries: 3
   retry_delay: 0.5
   servers: []
 
-
-# ============================================================================
-# EMAIL VALIDATION RULES
-# ============================================================================
-# deliverable_address: Enable DNS deliverability checks (MX/A records)
-# smtp_validation: Enable SMTP RCPT TO validation (Step 4 & 5)
-#                  NOTE: Both validation.smtp_validation AND smtp.enabled 
-#                  must be true for SMTP validation to work
-#
-# STRICT SYNTAX RULES (enforced in EmailSyntaxValidator):
-# - Local part: ONLY a-z A-Z 0-9 . _ (NO plus-addressing, NO hyphens, NO other special chars)
-# - Dots and underscores cannot be at start or end of local part
-# - No consecutive dots
-# - TLD: Minimum 2 characters, letters only, validated against IANA TLD list
-# - IANA TLD list downloaded fresh on each run from https://data.iana.org/TLD/tlds-alpha-by-domain.txt
 validation:
   deliverable_address: true
   smtp_validation: true
 
-
-# ============================================================================
-# SMTP VALIDATION SETTINGS (for RCPT TO and Catch-all Detection)
-# ============================================================================
-# enabled: Enable/disable SMTP validation component
-#          NOTE: Set to true once you add SOCKS5 proxies to data/proxy.txt
-#          Both validation.smtp_validation AND smtp.enabled must be true
-# timeout: SMTP connection timeout in seconds
-# max_retries: Maximum retry attempts for SMTP errors
-# from_email: Email to use in MAIL FROM command
-# use_proxy: Use SOCKS5 proxy for SMTP connections
-# proxy_rate_limit: Rate limit in seconds (1 request per proxy per second)
 smtp:
   enabled: true
   timeout: 10
@@ -92,10 +103,6 @@ smtp:
   use_proxy: true
   proxy_rate_limit: 1.0
 
-
-# ============================================================================
-# FILE PATHS
-# ============================================================================
 paths:
   disposable_domains: "data/disposable_domains.txt"
   well_known_domains: "config/well_known_domains.txt"
@@ -107,13 +114,6 @@ paths:
   unknown_output: "output/unknown.txt"
   log_file: "log/validator.log"
 
-
-# ============================================================================
-# LOGGING CONFIGURATION
-# ============================================================================
-# level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-# format: Log message format
-# console_output: Whether to also log to console (currently only logs to file)
 logging:
   level: "INFO"
   format: "%(asctime)s - %(levelname)s - %(message)s"
