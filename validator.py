@@ -47,35 +47,10 @@ class ProgressDisplay:
             self.config_printed = True
     
     def print_progress(self, current, total, valid, risk, invalid, unknown, speed, eta_str=""):
-        """Print real-time progress - uses \\r in terminal, newlines in piped output"""
-        # Print config once on first call
-        if not self.config_printed:
+        """Progress updates disabled - final summary provides all information"""
+        # Config only shown once if needed
+        if not self.config_printed and self.show_config and self.config_info:
             self.print_config()
-        
-        progress = (current / total) * 100
-        
-        # Create progress bar
-        bar_length = 40
-        filled = int(bar_length * current // total)
-        bar = '█' * filled + '░' * (bar_length - filled)
-        
-        # Build progress string
-        status = (
-            f"{current}/{total} ({progress:.1f}%) | "
-            f"Valid: {valid} | Risk: {risk} | Invalid: {invalid} | Unknown: {unknown} | "
-            f"Speed: {speed:.1f}/s"
-        )
-        if eta_str:
-            status += f" | ETA: {eta_str}"
-        
-        status = f"[{bar}] {status}"
-        
-        if self.is_terminal:
-            # In interactive terminal: use \r to update same line
-            print(status.ljust(120), end='\r', flush=True)
-        else:
-            # In piped output (workflow logs): print normally
-            print(status, flush=True)
     
     def finish(self):
         """Move to next line after progress completes"""
