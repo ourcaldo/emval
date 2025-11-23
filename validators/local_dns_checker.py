@@ -136,9 +136,10 @@ class LocalDNSChecker:
             - cacheable: True if result should be cached (definitive), False for temporary failures
         """
         # Try multiple times with exponential backoff
-        for attempt in range(self.max_retries):
+        # max_retries = 0 means 1 attempt (no retries), max_retries = 3 means 4 attempts (1 + 3 retries)
+        for attempt in range(self.max_retries + 1):
             try:
-                logger.debug(f"Checking DNS for domain: {domain} (attempt {attempt + 1}/{self.max_retries})")
+                logger.debug(f"Checking DNS for domain: {domain} (attempt {attempt + 1}/{self.max_retries + 1})")
                 
                 # First, check for MX records (preferred for email)
                 try:
@@ -202,8 +203,8 @@ class LocalDNSChecker:
             
             except dns.exception.Timeout:
                 # Timeout - temporary failure, don't cache
-                logger.warning(f"DNS timeout for domain: {domain} (attempt {attempt + 1}/{self.max_retries})")
-                if attempt < self.max_retries - 1:
+                logger.warning(f"DNS timeout for domain: {domain} (attempt {attempt + 1}/{self.max_retries + 1})")
+                if attempt < self.max_retries:
                     wait_time = self.retry_delay * (2 ** attempt)  # Exponential backoff
                     logger.debug(f"Waiting {wait_time}s before retry...")
                     time.sleep(wait_time)
@@ -213,8 +214,8 @@ class LocalDNSChecker:
             
             except dns.resolver.LifetimeTimeout:
                 # Lifetime timeout (total timeout exceeded) - temporary failure
-                logger.warning(f"DNS lifetime timeout for domain: {domain} (attempt {attempt + 1}/{self.max_retries})")
-                if attempt < self.max_retries - 1:
+                logger.warning(f"DNS lifetime timeout for domain: {domain} (attempt {attempt + 1}/{self.max_retries + 1})")
+                if attempt < self.max_retries:
                     wait_time = self.retry_delay * (2 ** attempt)
                     logger.debug(f"Waiting {wait_time}s before retry...")
                     time.sleep(wait_time)
@@ -223,8 +224,8 @@ class LocalDNSChecker:
             
             except dns.resolver.NoNameservers:
                 # All nameservers failed - temporary failure, don't cache
-                logger.warning(f"All nameservers failed for domain: {domain} (attempt {attempt + 1}/{self.max_retries})")
-                if attempt < self.max_retries - 1:
+                logger.warning(f"All nameservers failed for domain: {domain} (attempt {attempt + 1}/{self.max_retries + 1})")
+                if attempt < self.max_retries:
                     wait_time = self.retry_delay * (2 ** attempt)
                     logger.debug(f"Waiting {wait_time}s before retry...")
                     time.sleep(wait_time)
@@ -234,7 +235,7 @@ class LocalDNSChecker:
             except dns.resolver.NoResolverConfiguration:
                 # No resolver configuration - configuration error, treat as temporary
                 logger.error(f"No resolver configuration for domain: {domain}")
-                if attempt < self.max_retries - 1:
+                if attempt < self.max_retries:
                     wait_time = self.retry_delay * (2 ** attempt)
                     logger.debug(f"Waiting {wait_time}s before retry...")
                     time.sleep(wait_time)
@@ -249,7 +250,7 @@ class LocalDNSChecker:
             except dns.exception.DNSException as e:
                 # Generic DNS error - could be temporary or permanent, treat as temporary to be safe
                 logger.warning(f"DNS exception for domain {domain}: {type(e).__name__}: {e}")
-                if attempt < self.max_retries - 1:
+                if attempt < self.max_retries:
                     wait_time = self.retry_delay * (2 ** attempt)
                     logger.debug(f"Waiting {wait_time}s before retry...")
                     time.sleep(wait_time)
