@@ -25,18 +25,20 @@ class ProgressDisplay:
     """
     def __init__(self):
         self.lines_printed = 0
-        self.is_terminal = sys.stdout.isatty()
+        # Force ANSI support for Replit environment
+        self.is_terminal = True
         self.show_config = False
         self.config_info = {}
         self.first_display = True
     
     def clear_previous(self):
         """Move cursor up and clear previous lines"""
-        if self.lines_printed > 0 and self.is_terminal:
+        if self.lines_printed > 0:
             # Move cursor up N lines
             sys.stdout.write(f'\033[{self.lines_printed}A')
             # Clear from cursor to end of screen
             sys.stdout.write('\033[J')
+            sys.stdout.flush()
     
     def print_progress(self, current, total, valid, risk, invalid, unknown, speed, eta_str=""):
         """Print multi-line progress display"""
