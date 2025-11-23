@@ -13,8 +13,8 @@
 # ============================================================================
 #
 # CONCURRENCY:
-#   max_workers: Number of concurrent validation jobs
-#   batch_size: Number of emails to process per batch
+#   max_workers: Number of concurrent validation jobs (threads)
+#               Each worker processes a different email at the same time
 #
 # RETRY:
 #   attempts: Number of retry attempts for DNS failures
@@ -76,7 +76,6 @@
 
 concurrency:
   max_workers: 1
-  batch_size: 1
 
 retry:
   attempts: 3
