@@ -47,3 +47,6 @@ output/invalid.txt
 # Log files
 log/
 *.log
+
+emails.txt
+proxy.txt
