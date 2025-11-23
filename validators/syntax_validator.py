@@ -24,8 +24,9 @@ class EmailSyntaxValidator:
     """
     
     # Strict local part pattern: only letters, numbers, dots, underscores
-    # Must start and end with alphanumeric (not dot or underscore)
-    LOCAL_PART_PATTERN = r'^[a-zA-Z0-9]+([._]?[a-zA-Z0-9]+)*$'
+    # Must start with alphanumeric, must end with alphanumeric
+    # Middle can have any combination of a-z A-Z 0-9 . _
+    LOCAL_PART_PATTERN = r'^[a-zA-Z0-9][a-zA-Z0-9._]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$'
     
     # Domain label pattern: letters, numbers, hyphens (not at start/end)
     DOMAIN_LABEL_PATTERN = r'^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$'

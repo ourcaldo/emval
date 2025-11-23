@@ -34,17 +34,15 @@ network:
 
 # Email Validator Rules
 validation:
-  allow_smtputf8: false        # Allow Unicode characters in emails
-  allow_empty_local: false     # Allow empty local parts
-  allow_quoted_local: false    # Allow quoted strings
-  allow_domain_literal: false  # Allow IP addresses as domains
   deliverable_address: true    # Enable DNS deliverability checks
   smtp_validation: true        # Enable SMTP RCPT TO validation (Step 4 & 5)
-  allowed_special_domains: []  # List of special-use domains to allow (e.g., ['test', 'localhost'])
   
-  # Note: Plus-addressing is now handled with provider-aware logic:
-  # - Rejected for Gmail/Google domains (gmail.com, googlemail.com, google.com)
-  # - Allowed for all other domains
+  # Strict Syntax Rules (enforced in EmailSyntaxValidator):
+  # - Local part: ONLY a-z A-Z 0-9 . _ (NO plus-addressing, NO hyphens, NO other special chars)
+  # - Dots and underscores cannot be at start or end of local part
+  # - No consecutive dots
+  # - TLD: Minimum 2 characters, letters only, validated against IANA TLD list
+  # - IANA TLD list downloaded fresh on each run from https://data.iana.org/TLD/tlds-alpha-by-domain.txt
 
 # SMTP Validation Settings (for RCPT TO and Catch-all Detection)
 smtp:
