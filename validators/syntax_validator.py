@@ -1,88 +1,56 @@
 """
-Custom email syntax validator following RFC 5322 standards.
-Replaces the emval module with self-hosted validation logic.
+Strict email syntax validator with custom rules.
+NO plus-addressing, NO hyphens in local part, strict character restrictions.
 """
 
 import re
-from typing import Tuple, List, Optional
+from typing import Tuple, Optional
 import logging
+from validators.tld_validator import TLDValidator
 
 logger = logging.getLogger(__name__)
 
 
 class EmailSyntaxValidator:
     """
-    RFC 5322 compliant email syntax validator with configurable options.
+    Strict email syntax validator with custom restrictions.
     
-    Supports:
-    - allow_smtputf8: Internationalized email addresses (Unicode)
-    - allow_empty_local: Empty local parts (@domain.com)
-    - allow_quoted_local: Quoted local parts ("user name"@domain.com)
-    - allow_domain_literal: Domain literals ([192.168.0.1])
-    - allowed_special_domains: Special-use domains to allow
+    Rules:
+    - Local part: Only a-z A-Z 0-9 . _ (NO +, NO -, NO other special chars)
+    - Dots and underscores cannot be at start or end of local part
+    - No consecutive dots
+    - Domain: Standard format with IANA TLD validation
+    - TLD: Minimum 2 characters, letters only, validated against IANA list
     """
     
-    # RFC 5322 character sets
-    ATEXT = r'[a-zA-Z0-9!#$%&\'*+/=?^_`{|}~-]'
-    DOT_ATOM = r'[a-zA-Z0-9!#$%&\'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&\'*+/=?^_`{|}~-]+)*'
+    # Strict local part pattern: only letters, numbers, dots, underscores
+    # Must start and end with alphanumeric (not dot or underscore)
+    LOCAL_PART_PATTERN = r'^[a-zA-Z0-9]+([._]?[a-zA-Z0-9]+)*$'
     
-    # Quoted string pattern
-    QTEXT = r'[^\x00-\x1F\x7F"\\]'
-    QCONTENT = rf'(?:{QTEXT}|\\[\x00-\x7F])'
-    QUOTED_STRING = rf'"(?:{QCONTENT})*"'
+    # Domain label pattern: letters, numbers, hyphens (not at start/end)
+    DOMAIN_LABEL_PATTERN = r'^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$'
     
-    # Domain patterns
-    DOMAIN_LABEL = r'[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?'
-    DOMAIN = rf'{DOMAIN_LABEL}(?:\.{DOMAIN_LABEL})*'
+    # TLD pattern: only letters, minimum 2 characters
+    TLD_PATTERN = r'^[a-zA-Z]{2,}$'
     
-    # IP address pattern (domain literal)
-    IPV4 = r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}'
-    DOMAIN_LITERAL = rf'\[(?:{IPV4}|[^\]]+)\]'
-    
-    # Unicode pattern for SMTPUTF8
-    UNICODE_ATEXT = r'[a-zA-Z0-9!#$%&\'*+/=?^_`{|}~\u0080-\uFFFF-]'
-    UNICODE_DOT_ATOM = r'[a-zA-Z0-9!#$%&\'*+/=?^_`{|}~\u0080-\uFFFF-]+(?:\.[a-zA-Z0-9!#$%&\'*+/=?^_`{|}~\u0080-\uFFFF-]+)*'
-    
-    # Reserved/special domains (RFC 2606, RFC 6761)
-    RESERVED_DOMAINS = {
-        'test', 'example', 'invalid', 'localhost',
-        'example.com', 'example.net', 'example.org',
-        'test.com', 'invalid.com'
-    }
-    
-    def __init__(
-        self,
-        allow_smtputf8: bool = False,
-        allow_empty_local: bool = False,
-        allow_quoted_local: bool = False,
-        allow_domain_literal: bool = False,
-        allowed_special_domains: Optional[List[str]] = None
-    ):
+    def __init__(self, download_tld_list: bool = True):
         """
         Initialize email syntax validator.
         
         Args:
-            allow_smtputf8: Allow Unicode characters in email addresses
-            allow_empty_local: Allow empty local part (e.g., @domain.com)
-            allow_quoted_local: Allow quoted local parts (e.g., "user name"@domain.com)
-            allow_domain_literal: Allow domain literals (e.g., [192.168.0.1])
-            allowed_special_domains: List of special-use domains to allow
-        
-        Note: Plus-addressing validation is now handled at the service layer with provider-aware logic.
+            download_tld_list: Download fresh IANA TLD list on initialization (default: True)
         """
-        self.allow_smtputf8 = allow_smtputf8
-        self.allow_empty_local = allow_empty_local
-        self.allow_quoted_local = allow_quoted_local
-        self.allow_domain_literal = allow_domain_literal
-        self.allowed_special_domains = set(allowed_special_domains or [])
+        # Initialize TLD validator (downloads fresh list by default)
+        self.tld_validator = TLDValidator(force_download=download_tld_list)
         
-        logger.info("EmailSyntaxValidator initialized")
-        logger.debug(f"Options: smtputf8={allow_smtputf8}, empty_local={allow_empty_local}, "
-                    f"quoted_local={allow_quoted_local}, domain_literal={allow_domain_literal}")
+        logger.info("EmailSyntaxValidator initialized with strict rules")
+        logger.info(f"TLD list loaded: {self.tld_validator.get_tld_count()} TLDs")
+        if self.tld_validator.get_version_info():
+            logger.info(f"TLD version: {self.tld_validator.get_version_info()}")
     
     def validate(self, email: str) -> Tuple[bool, str]:
         """
-        Validate email address syntax.
+        Validate email address syntax with strict rules.
         
         Args:
             email: Email address to validate
@@ -94,13 +62,14 @@ class EmailSyntaxValidator:
         if not email or not isinstance(email, str):
             return False, "Email must be a non-empty string"
         
+        # Strip whitespace and convert to lowercase for validation
         email = email.strip()
         
-        # Check overall length (RFC 5321)
+        # Check overall length (RFC 5321: max 254 characters)
         if len(email) > 254:
             return False, "Email exceeds 254 characters"
         
-        # Must contain exactly one @ (unless empty local is allowed)
+        # Must contain exactly one @ symbol
         at_count = email.count('@')
         if at_count == 0:
             return False, "Email must contain @ symbol"
@@ -124,7 +93,14 @@ class EmailSyntaxValidator:
     
     def _validate_local_part(self, local: str) -> Tuple[bool, str]:
         """
-        Validate the local part of an email address.
+        Validate the local part of an email address (before @).
+        
+        Strict rules:
+        - Allowed characters: a-z A-Z 0-9 . _
+        - Cannot start with dot or underscore
+        - Cannot end with dot or underscore
+        - No consecutive dots
+        - Length: 1-64 characters
         
         Args:
             local: Local part (before @)
@@ -134,85 +110,59 @@ class EmailSyntaxValidator:
         """
         # Check for empty local part
         if not local:
-            if self.allow_empty_local:
-                return True, ""
             return False, "Local part is empty"
         
-        # Check length (RFC 5321)
+        # Check length (RFC 5321: max 64 characters)
         if len(local) > 64:
             return False, "Local part exceeds 64 characters"
         
-        # Check if it's a quoted string
-        if local.startswith('"') and local.endswith('"'):
-            if self.allow_quoted_local:
-                return self._validate_quoted_local(local)
-            return False, "Quoted local parts not allowed"
+        # Check if starts with dot
+        if local.startswith('.'):
+            return False, "Local part cannot start with dot"
         
-        # Validate as dot-atom
-        return self._validate_dot_atom_local(local)
-    
-    def _validate_quoted_local(self, local: str) -> Tuple[bool, str]:
-        """
-        Validate quoted local part.
+        # Check if starts with underscore
+        if local.startswith('_'):
+            return False, "Local part cannot start with underscore"
         
-        Args:
-            local: Quoted local part
-            
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-        # Check if properly quoted
-        if len(local) < 2:
-            return False, "Invalid quoted string"
+        # Check if ends with dot
+        if local.endswith('.'):
+            return False, "Local part cannot end with dot"
         
-        # Remove quotes and validate content
-        content = local[1:-1]
+        # Check if ends with underscore
+        if local.endswith('_'):
+            return False, "Local part cannot end with underscore"
         
-        # Quoted strings can contain almost anything, but need to escape special chars
-        # For simplicity, we'll allow most characters
-        pattern = re.compile(self.QCONTENT + r'*')
-        if not pattern.fullmatch(content):
-            return False, "Invalid characters in quoted local part"
-        
-        return True, ""
-    
-    def _validate_dot_atom_local(self, local: str) -> Tuple[bool, str]:
-        """
-        Validate local part as dot-atom format.
-        
-        Note: Plus-addressing validation is now handled at the service layer
-        with provider-aware logic (rejected only for Gmail/Google domains).
-        
-        Args:
-            local: Local part
-            
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-        # Cannot start or end with dot
-        if local.startswith('.') or local.endswith('.'):
-            return False, "Local part cannot start or end with dot"
-        
-        # Cannot have consecutive dots
+        # Check for consecutive dots
         if '..' in local:
             return False, "Local part cannot contain consecutive dots"
         
-        # Check character set
-        if self.allow_smtputf8:
-            pattern = re.compile(f'^{self.UNICODE_DOT_ATOM}$')
-        else:
-            pattern = re.compile(f'^{self.DOT_ATOM}$')
+        # Check for plus sign (absolutely not allowed)
+        if '+' in local:
+            return False, "Plus sign (+) not allowed in local part"
         
+        # Check for hyphen (not allowed in local part)
+        if '-' in local:
+            return False, "Hyphen (-) not allowed in local part"
+        
+        # Validate character set using regex
+        # Pattern: must start with alphanumeric, can contain dots/underscores in middle, must end with alphanumeric
+        pattern = re.compile(self.LOCAL_PART_PATTERN)
         if not pattern.match(local):
-            if self.allow_smtputf8:
-                return False, "Invalid characters in local part"
-            return False, "Invalid characters in local part (Unicode not allowed)"
+            return False, "Local part contains invalid characters (only a-z A-Z 0-9 . _ allowed)"
         
         return True, ""
     
     def _validate_domain_part(self, domain: str) -> Tuple[bool, str]:
         """
-        Validate the domain part of an email address.
+        Validate the domain part of an email address (after @).
+        
+        Rules:
+        - Must contain at least one dot (require TLD)
+        - Each label: 1-63 characters
+        - Allowed characters: a-z A-Z 0-9 - (hyphen only in middle)
+        - Cannot start/end with dot or hyphen
+        - TLD: minimum 2 characters, letters only, validated against IANA list
+        - Maximum length: 255 characters
         
         Args:
             domain: Domain part (after @)
@@ -223,104 +173,122 @@ class EmailSyntaxValidator:
         if not domain:
             return False, "Domain is empty"
         
-        # Check length (RFC 5321)
-        if len(domain) > 253:
-            return False, "Domain exceeds 253 characters"
+        # Check length (RFC 5321: max 255 characters)
+        if len(domain) > 255:
+            return False, "Domain exceeds 255 characters"
         
-        # Check if it's a domain literal
-        if domain.startswith('[') and domain.endswith(']'):
-            if self.allow_domain_literal:
-                return self._validate_domain_literal(domain)
-            return False, "Domain literals not allowed"
-        
-        # Validate as regular domain
-        return self._validate_regular_domain(domain)
-    
-    def _validate_domain_literal(self, domain: str) -> Tuple[bool, str]:
-        """
-        Validate domain literal (IP address in brackets).
-        
-        Args:
-            domain: Domain literal [IP]
-            
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-        pattern = re.compile(f'^{self.DOMAIN_LITERAL}$')
-        if not pattern.match(domain):
-            return False, "Invalid domain literal format"
-        
-        # Extract and validate IP
-        ip = domain[1:-1]
-        
-        # Try IPv4 validation
-        ipv4_pattern = re.compile(f'^{self.IPV4}$')
-        if ipv4_pattern.match(ip):
-            return True, ""
-        
-        # For IPv6 or other formats, just accept if syntax is correct
-        return True, ""
-    
-    def _validate_regular_domain(self, domain: str) -> Tuple[bool, str]:
-        """
-        Validate regular domain name.
-        
-        Args:
-            domain: Domain name
-            
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-        # Convert to lowercase for checking
-        domain_lower = domain.lower()
-        
-        # Must contain at least one dot for TLD
+        # Must contain at least one dot (require TLD)
         if '.' not in domain:
-            # Check if it's a special allowed domain
-            if domain_lower in self.allowed_special_domains:
-                return True, ""
             return False, "Domain must contain at least one dot (TLD required)"
         
-        # Check for reserved domains
-        if domain_lower in self.RESERVED_DOMAINS:
-            if domain_lower not in self.allowed_special_domains:
-                return False, f"Reserved domain '{domain}' not allowed"
-        
         # Cannot start or end with dot
-        if domain.startswith('.') or domain.endswith('.'):
-            return False, "Domain cannot start or end with dot"
+        if domain.startswith('.'):
+            return False, "Domain cannot start with dot"
+        
+        if domain.endswith('.'):
+            return False, "Domain cannot end with dot"
         
         # Cannot start or end with hyphen
-        if domain.startswith('-') or domain.endswith('-'):
-            return False, "Domain cannot start or end with hyphen"
+        if domain.startswith('-'):
+            return False, "Domain cannot start with hyphen"
         
-        # Validate each label
+        if domain.endswith('-'):
+            return False, "Domain cannot end with hyphen"
+        
+        # Check for consecutive dots
+        if '..' in domain:
+            return False, "Domain cannot contain consecutive dots"
+        
+        # Split into labels and validate each
         labels = domain.split('.')
-        for label in labels:
+        
+        if len(labels) < 2:
+            return False, "Domain must have at least 2 labels (domain.tld)"
+        
+        for i, label in enumerate(labels):
+            # Check for empty label
             if not label:
                 return False, "Domain contains empty label (consecutive dots)"
             
+            # Check label length (max 63 characters per label)
             if len(label) > 63:
                 return False, f"Domain label '{label}' exceeds 63 characters"
             
-            # Label cannot start or end with hyphen
-            if label.startswith('-') or label.endswith('-'):
-                return False, f"Domain label '{label}' cannot start or end with hyphen"
-            
-            # Check characters (allow Unicode if SMTPUTF8 is enabled)
-            if self.allow_smtputf8:
-                # Allow Unicode characters
-                if not re.match(r'^[a-zA-Z0-9\u0080-\uFFFF-]+$', label):
-                    return False, f"Invalid characters in domain label '{label}'"
-            else:
-                # ASCII only
-                if not re.match(r'^[a-zA-Z0-9-]+$', label):
-                    return False, f"Invalid characters in domain label '{label}' (Unicode not allowed)"
+            # Validate label format
+            is_valid, error = self._validate_domain_label(label, is_tld=(i == len(labels) - 1))
+            if not is_valid:
+                return False, error
         
-        # TLD must be at least 2 characters (except for allowed special domains)
+        # Validate TLD specifically
         tld = labels[-1]
-        if len(tld) < 2 and domain_lower not in self.allowed_special_domains:
+        is_valid, error = self._validate_tld(tld)
+        if not is_valid:
+            return False, error
+        
+        return True, ""
+    
+    def _validate_domain_label(self, label: str, is_tld: bool = False) -> Tuple[bool, str]:
+        """
+        Validate a single domain label.
+        
+        Args:
+            label: Domain label to validate
+            is_tld: Whether this label is the TLD (last part)
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        # Label must not be empty
+        if not label:
+            return False, "Label is empty"
+        
+        # Label cannot start with hyphen
+        if label.startswith('-'):
+            return False, f"Label '{label}' cannot start with hyphen"
+        
+        # Label cannot end with hyphen
+        if label.endswith('-'):
+            return False, f"Label '{label}' cannot end with hyphen"
+        
+        # For TLD, only letters allowed (no numbers, no hyphens)
+        if is_tld:
+            if not label.isalpha():
+                return False, f"TLD '{label}' can only contain letters"
+        else:
+            # For non-TLD labels, validate using pattern
+            pattern = re.compile(self.DOMAIN_LABEL_PATTERN)
+            if not pattern.match(label):
+                return False, f"Label '{label}' contains invalid characters"
+        
+        return True, ""
+    
+    def _validate_tld(self, tld: str) -> Tuple[bool, str]:
+        """
+        Validate TLD (Top-Level Domain).
+        
+        Rules:
+        - Minimum 2 characters
+        - Only letters (no numbers, no special characters)
+        - Must be in IANA TLD list
+        
+        Args:
+            tld: TLD to validate
+            
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        # Check minimum length
+        if len(tld) < 2:
             return False, f"TLD '{tld}' must be at least 2 characters"
+        
+        # Check if only letters
+        pattern = re.compile(self.TLD_PATTERN)
+        if not pattern.match(tld):
+            return False, f"TLD '{tld}' can only contain letters (no numbers or special characters)"
+        
+        # Validate against IANA TLD list
+        if not self.tld_validator.is_valid_tld(tld):
+            return False, f"TLD '{tld}' is not in the IANA TLD list"
         
         return True, ""
     
