@@ -20,13 +20,14 @@ import logging
 
 class ProgressDisplay:
     """
-    Single-line dynamic progress display using carriage return
-    Works in Replit workflow environment
+    Dynamic progress display - uses \r for terminals, regular output for pipes
+    Based on sys.stdout.isatty() detection from dynamic-progress-guide.md
     """
     def __init__(self):
         self.show_config = False
         self.config_info = {}
         self.config_printed = False
+        self.is_terminal = sys.stdout.isatty()
     
     def print_config(self):
         """Print configuration once before progress starts"""
@@ -46,31 +47,41 @@ class ProgressDisplay:
             self.config_printed = True
     
     def print_progress(self, current, total, valid, risk, invalid, unknown, speed, eta_str=""):
-        """Print progress only at intervals to avoid log spam"""
+        """Print real-time progress - uses \\r in terminal, newlines in piped output"""
         # Print config once on first call
         if not self.config_printed:
             self.print_config()
         
-        # Only print progress at key intervals: 25%, 50%, 75%, 100%
         progress = (current / total) * 100
-        show_progress = (progress % 25 < (100.0 / total)) or progress >= 99.9
         
-        if show_progress:
-            # Create progress bar
-            bar_length = 40
-            filled = int(bar_length * current // total)
-            bar = '█' * filled + '░' * (bar_length - filled)
-            
-            status = (
-                f"[{bar}] {progress:.1f}% | "
-                f"{current}/{total} | "
-                f"Valid: {valid} | Risk: {risk} | Invalid: {invalid} | Unknown: {unknown}"
-            )
+        # Create progress bar
+        bar_length = 40
+        filled = int(bar_length * current // total)
+        bar = '█' * filled + '░' * (bar_length - filled)
+        
+        # Build progress string
+        status = (
+            f"{current}/{total} ({progress:.1f}%) | "
+            f"Valid: {valid} | Risk: {risk} | Invalid: {invalid} | Unknown: {unknown} | "
+            f"Speed: {speed:.1f}/s"
+        )
+        if eta_str:
+            status += f" | ETA: {eta_str}"
+        
+        status = f"[{bar}] {status}"
+        
+        if self.is_terminal:
+            # In interactive terminal: use \r to update same line
+            print(status.ljust(120), end='\r', flush=True)
+        else:
+            # In piped output (workflow logs): print normally
             print(status, flush=True)
     
     def finish(self):
         """Move to next line after progress completes"""
-        print("\n" + "=" * 70)
+        if self.is_terminal:
+            print()  # Move to next line
+        print("=" * 70)
 
 # Load configuration from YAML file
 def load_config(config_file: str = "config/settings.yaml") -> dict:
