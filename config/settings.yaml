@@ -24,13 +24,9 @@ dns:
   # You can customize with your own DNS servers for privacy/performance
   servers: []               # Example: ["8.8.8.8", "1.1.1.1"]
   
-# Legacy Network Configuration (deprecated - kept for backward compatibility)
-network:
-  timeout: 10               # Request timeout in seconds
-  max_retries: 3            # Maximum retry attempts for API requests
-  retry_delay: 1.0          # Delay between retries in seconds
-  rate_limit_delay: 0.1     # Minimum delay between API requests (to avoid rate limiting)
-  proxy: false              # Enable/disable proxy usage (true/false)
+# Note: The old HTTP DNS API configuration has been removed.
+# This validator now uses local DNS resolution via dnspython (much faster!)
+# If you need the legacy HTTP API, check validators/http_dns_checker.py
 
 # Email Validator Rules
 validation:

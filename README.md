@@ -32,7 +32,7 @@ pip install -r requirements.txt
    - Duplicates will be automatically removed
 2. Run the validator:
 ```bash
-python validator.py
+python main.py
 ```
 3. Check the results in the `output/` directory:
    - `output/valid/<domain>.txt` - Valid emails for well-known domains (gmail.com, yahoo.com, etc.)
@@ -74,7 +74,7 @@ All settings are configurable in `config/settings.yaml`:
 
 ```
 .
-├── validator.py                   # Main entry point
+├── main.py                        # Main entry point
 ├── validators/                    # Modular validation package
 │   ├── __init__.py                # Package exports
 │   ├── core.py                    # Email validation service
@@ -168,7 +168,7 @@ Removed 2 duplicate emails
 ## 📊 Example Run
 
 ```bash
-$ python validator.py
+$ python main.py
 
 ======================================================================
 BULK EMAIL VALIDATOR
@@ -231,9 +231,9 @@ The validator recognizes 173 popular email providers and creates separate files 
 
 The validator uses a self-hosted modular architecture with clear separation of concerns:
 
-- **validator.py** - Main orchestrator, loads config and coordinates components
+- **main.py** - Main orchestrator, loads config and coordinates components
 - **EmailSyntaxValidator** - Self-hosted RFC 5322 compliant syntax validation
-- **HTTPDNSChecker** - HTTP API-based DNS verification with LRU caching and proxy support
+- **LocalDNSChecker** - Local DNS resolution using dnspython (5-10x faster than API-based)
 - **EmailValidationService** - Core validation logic orchestrating syntax, disposable, and DNS checks
 - **DisposableDomainChecker** - Disposable domain detection
 - **EmailIOHandler** - File I/O and well-known domain separation

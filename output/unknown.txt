@@ -1,0 +1,11 @@
+user@gmail.com
+test@yahoo.com
+admin@outlook.com
+support@facebook.com
+contact@twitter.com
+info@linkedin.com
+hello@amazon.com
+service@microsoft.com
+team@apple.com
+help@google.com
+contact@disposable.com

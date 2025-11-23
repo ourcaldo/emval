@@ -255,7 +255,6 @@ def main():
     validation_config = config.get('validation', {})
     smtp_config = config.get('smtp', {})
     paths_config = config.get('paths', {})
-    network_config = config.get('network', {})
 
     concurrent_jobs = concurrency_config.get('max_workers', 1000)
     batch_size = concurrency_config.get('batch_size', 1000)
