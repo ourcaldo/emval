@@ -1,0 +1,104 @@
+======================================================================
+BULK EMAIL VALIDATOR
+======================================================================
+Concurrent Jobs: 1000
+
+Initializing validation components...
+
+======================================================================
+VALIDATOR CONFIGURATION
+
+DNS deliverability:  Enabled
+SMTP validation:     Disabled
+Retry attempts:      3
+DNS cache size:      10000 domains
+SOCKS5 proxy:        Disabled
+Well-known domains:  173
+Disposable domains:  4765
+
+Progress: [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 5.3%
+======================================================================
+VALIDATOR CONFIGURATION
+
+DNS deliverability:  Enabled
+SMTP validation:     Disabled
+Retry attempts:      3
+DNS cache size:      10000 domains
+SOCKS5 proxy:        Disabled
+Well-known domains:  173
+Disposable domains:  4765
+
+Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 10.5%
+======================================================================
+VALIDATOR CONFIGURATION
+
+DNS deliverability:  Enabled
+SMTP validation:     Disabled
+Retry attempts:      3
+DNS cache size:      10000 domains
+SOCKS5 proxy:        Disabled
+Well-known domains:  173
+Disposable domains:  4765
+
+Progress: [██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 15.8%
+======================================================================
+VALIDATOR CONFIGURATION
+
+DNS deliverability:  Enabled
+SMTP validation:     Disabled
+Retry attempts:      3
+DNS cache size:      10000 domains
+SOCKS5 proxy:        Disabled
+Well-known domains:  173
+Disposable domains:  4765
+
+Progress: [████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 21.1%
+======================================================================
+VALIDATOR CONFIGURATION
+
+DNS deliverability:  Enabled
+SMTP validation:     Disabled
+Retry attempts:      3
+DNS cache size:      10000 domains
+SOCKS5 proxy:        Disabled
+Well-known domains:  173
+Disposable domains:  4765
+
+Progress: [██████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 26.3%
+======================================================================
+VALIDATOR CONFIGURATION
+
+DNS deliverability:  Enabled
+SMTP validation:     Disabled
+Retry attempts:      3
+DNS cache size:      10000 domains
+SOCKS5 proxy:        Disabled
+Well-known domains:  173
+Disposable domains:  4765
+
+Progress: [████████████████████████████████████████] 100.0%
+Status: 19/19 emails processed
+
+Valid (safe):     12
+Risk (catch-all): 0
+Invalid:          7
+Unknown:          0
+Speed:            435.0 emails/second | ETA: 0s
+======================================================================
+
+
+======================================================================
+VALIDATION SUMMARY
+
+Total Emails:     19
+Valid (safe):     12
+Risk (catch-all): 0
+Invalid:          7
+Unknown:          0
+Time Taken:       0.04 seconds
+Speed:            427.18 emails/second
+
+Output Files:
+  Valid emails: output/valid/
+  Invalid:      output/invalid.txt
+======================================================================

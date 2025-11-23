@@ -20,30 +20,36 @@ import logging
 
 class ProgressDisplay:
     """
-    Multi-line dynamic progress display using ANSI escape codes
-    Creates a dashboard-style display that updates in place
+    Single-line dynamic progress display using carriage return
+    Works in Replit workflow environment
     """
     def __init__(self):
-        self.lines_printed = 0
-        # Force ANSI support for Replit environment
-        self.is_terminal = True
         self.show_config = False
         self.config_info = {}
-        self.first_display = True
+        self.config_printed = False
     
-    def clear_previous(self):
-        """Move cursor up and clear previous lines"""
-        if self.lines_printed > 0:
-            # Move cursor up N lines
-            sys.stdout.write(f'\033[{self.lines_printed}A')
-            # Clear from cursor to end of screen
-            sys.stdout.write('\033[J')
-            sys.stdout.flush()
+    def print_config(self):
+        """Print configuration once before progress starts"""
+        if self.show_config and self.config_info and not self.config_printed:
+            print("=" * 70)
+            print("VALIDATOR CONFIGURATION")
+            print()
+            print(f"DNS deliverability:  {'Enabled' if self.config_info.get('dns_deliverable') else 'Disabled'}")
+            print(f"SMTP validation:     {'Enabled' if self.config_info.get('smtp_enabled') else 'Disabled'}")
+            print(f"Retry attempts:      {self.config_info.get('retry_attempts', 3)}")
+            print(f"DNS cache size:      {self.config_info.get('dns_cache_size', 10000)} domains")
+            print(f"SOCKS5 proxy:        {'Enabled (' + str(self.config_info.get('proxy_count', 0)) + ' proxies)' if self.config_info.get('proxy_enabled') else 'Disabled'}")
+            print(f"Well-known domains:  {self.config_info.get('well_known_domains', 0)}")
+            print(f"Disposable domains:  {self.config_info.get('disposable_domains', 0)}")
+            print("=" * 70)
+            print()
+            self.config_printed = True
     
     def print_progress(self, current, total, valid, risk, invalid, unknown, speed, eta_str=""):
-        """Print multi-line progress display"""
-        # Clear previous output
-        self.clear_previous()
+        """Print single-line progress that updates in place using \\r"""
+        # Print config once on first call
+        if not self.config_printed:
+            self.print_config()
         
         progress = (current / total) * 100
         
@@ -52,52 +58,22 @@ class ProgressDisplay:
         filled = int(bar_length * current // total)
         bar = '█' * filled + '░' * (bar_length - filled)
         
-        # Build output lines matching validation summary style
-        lines = []
+        # Build single-line progress string
+        status = (
+            f"\r[{bar}] {progress:.1f}% | "
+            f"{current}/{total} | "
+            f"Valid: {valid} | Risk: {risk} | Invalid: {invalid} | Unknown: {unknown} | "
+            f"Speed: {speed:.1f}/s"
+        )
+        if eta_str:
+            status += f" | ETA: {eta_str}"
         
-        # Unified section with configuration and progress
-        lines.append("=" * 70)
-        
-        # Show configuration if enabled
-        if self.show_config and self.config_info:
-            lines.extend([
-                "VALIDATOR CONFIGURATION",
-                "",
-                f"DNS deliverability:  {'Enabled' if self.config_info.get('dns_deliverable') else 'Disabled'}",
-                f"SMTP validation:     {'Enabled' if self.config_info.get('smtp_enabled') else 'Disabled'}",
-                f"Retry attempts:      {self.config_info.get('retry_attempts', 3)}",
-                f"DNS cache size:      {self.config_info.get('dns_cache_size', 10000)} domains",
-                f"SOCKS5 proxy:        {'Enabled (' + str(self.config_info.get('proxy_count', 0)) + ' proxies)' if self.config_info.get('proxy_enabled') else 'Disabled'}",
-                f"Well-known domains:  {self.config_info.get('well_known_domains', 0)}",
-                f"Disposable domains:  {self.config_info.get('disposable_domains', 0)}",
-                ""
-            ])
-        
-        # Progress display
-        lines.extend([
-            f"Progress: [{bar}] {progress:.1f}%",
-            f"Status: {current}/{total} emails processed",
-            "",
-            f"Valid (safe):     {valid}",
-            f"Risk (catch-all): {risk}",
-            f"Invalid:          {invalid}",
-            f"Unknown:          {unknown}",
-            f"Speed:            {speed:.1f} emails/second" + (f" | ETA: {eta_str}" if eta_str else ""),
-            "=" * 70,
-        ])
-        
-        # Print all lines
-        output = '\n'.join(lines)
-        print(output, flush=True)
-        
-        # Remember how many lines we printed for next clear
-        self.lines_printed = len(lines)
+        # Pad with spaces to clear any leftover characters
+        print(status.ljust(120), end='', flush=True)
     
     def finish(self):
-        """Call this when progress is complete to ensure cursor moves to next line"""
-        if self.is_terminal:
-            # Just ensure we're on a new line
-            print()
+        """Move to next line after progress completes"""
+        print("\n" + "=" * 70)
 
 # Load configuration from YAML file
 def load_config(config_file: str = "config/settings.yaml") -> dict:
