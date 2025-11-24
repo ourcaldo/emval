@@ -37,7 +37,6 @@ class SMTPValidator:
     def __init__(
         self,
         proxy_manager=None,
-        timeout: int = 10,
         from_email: str = "verify@example.com",
         max_retries: int = 2
     ):
@@ -46,17 +45,16 @@ class SMTPValidator:
         
         Args:
             proxy_manager: ProxyManager instance for SOCKS5 proxies
-            timeout: Connection timeout in seconds
             from_email: Email address to use in MAIL FROM command
             max_retries: Maximum retry attempts for SMTP errors
         """
         self.proxy_manager = proxy_manager
-        self.timeout = timeout
+        self.timeout = 8
         self.from_email = from_email
         self.max_retries = max_retries
         
         logger.info("SMTPValidator initialized")
-        logger.info(f"Timeout: {timeout}s, From: {from_email}, Max retries: {max_retries}")
+        logger.info(f"From: {from_email}, Max retries: {max_retries}")
     
     def _generate_random_email(self, domain: str) -> str:
         """

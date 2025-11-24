@@ -248,6 +248,7 @@ def main():
     logger = logging.getLogger(__name__)
 
     # Extract configuration
+    timeout_config = config.get('timeout', {})
     concurrency_config = config.get('concurrency', {})
     retry_config = config.get('retry', {})
     dns_cache_config = config.get('dns_cache', {})
@@ -293,7 +294,6 @@ def main():
     dns_servers = dns_config.get('servers', [])
     dns_checker = LocalDNSChecker(
         cache_size=dns_cache_config.get('max_size', 10000),
-        timeout=dns_config.get('timeout', 5),
         max_retries=dns_config.get('max_retries', 3),
         retry_delay=dns_config.get('retry_delay', 0.5),
         dns_servers=dns_servers if dns_servers else None
@@ -305,13 +305,13 @@ def main():
     if smtp_enabled:
         smtp_validator = SMTPValidator(
             proxy_manager=proxy_manager,
-            timeout=smtp_config.get('timeout', 10),
             from_email=smtp_config.get('from_email', 'verify@example.com'),
             max_retries=smtp_config.get('max_retries', 2)
         )
         logger.info("SMTP validator initialized for RCPT TO and catch-all detection")
 
     # 5. Email validation service (with strict syntax validation)
+    global_timeout = timeout_config.get('global_timeout', 30)
     validation_service = EmailValidationService(
         disposable_checker=disposable_checker,
         dns_checker=dns_checker,
@@ -320,7 +320,8 @@ def main():
         retry_delay=retry_config.get('delay', 0.5),
         deliverable_address=validation_config.get('deliverable_address', True),
         smtp_validation=smtp_enabled,
-        download_tld_list=True  # Download fresh IANA TLD list on each run
+        download_tld_list=True,
+        global_timeout=global_timeout
     )
 
     # 6. I/O handler

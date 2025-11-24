@@ -5,6 +5,8 @@ Core email validation logic module.
 from .syntax_validator import EmailSyntaxValidator
 from typing import Tuple, List, Optional
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +39,8 @@ class EmailValidationService:
         retry_delay: float = 0.5,
         deliverable_address: bool = True,
         smtp_validation: bool = True,
-        download_tld_list: bool = True
+        download_tld_list: bool = True,
+        global_timeout: int = 30
     ):
         """
         Initialize email validation service.
@@ -51,6 +54,7 @@ class EmailValidationService:
             deliverable_address: Enable DNS deliverability checks
             smtp_validation: Enable SMTP RCPT TO validation
             download_tld_list: Download fresh IANA TLD list on initialization (default: True)
+            global_timeout: Global timeout for all validation steps per email (seconds)
         """
         self.disposable_checker = disposable_checker
         self.dns_checker = dns_checker
@@ -59,18 +63,20 @@ class EmailValidationService:
         self.retry_delay = retry_delay
         self.deliverable_address = deliverable_address
         self.smtp_validation = smtp_validation
+        self.global_timeout = global_timeout
         
         # Initialize syntax validator with strict rules
         self.syntax_validator = EmailSyntaxValidator(download_tld_list=download_tld_list)
         
         logger.info("EmailValidationService initialized")
+        logger.info(f"Global timeout: {global_timeout}s")
         logger.info(f"Retry attempts: {retry_attempts}, Retry delay: {retry_delay}s")
         logger.info(f"SMTP validation: {'Enabled' if smtp_validation and smtp_validator else 'Disabled'}")
         logger.info("Strict syntax: NO plus-addressing, NO hyphens in local part, TLD validated against IANA list")
     
     def validate(self, email: str) -> Tuple[str, bool, str, str]:
         """
-        Validate email through sequential validation pipeline.
+        Validate email through sequential validation pipeline with global timeout.
         
         Pipeline: Email → Syntax → Disposable → DNS → SMTP RCPT TO → Catch-all → Output
         
@@ -78,7 +84,7 @@ class EmailValidationService:
         - valid: Passed all validation steps (safe)
         - risk: Passed all except catch-all (risky, domain accepts all emails)
         - invalid: Failed at any validation step
-        - unknown: Passed basic validation but error during SMTP validation
+        - unknown: Passed basic validation but error during SMTP validation or timeout exceeded
         
         Args:
             email: Email address to validate
@@ -88,6 +94,49 @@ class EmailValidationService:
             category: 'valid', 'risk', 'invalid', 'unknown'
         """
         email = email.strip().lower()
+        
+        # Create executor explicitly (not using context manager to avoid blocking on timeout)
+        # Each validation gets its own executor to support concurrent validations
+        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"validator_{email[:10]}")
+        future = executor.submit(self._validate_internal, email)
+        
+        try:
+            # Wait for result with global timeout
+            result = future.result(timeout=self.global_timeout)
+            # Success - clean up properly by waiting for the thread to complete
+            executor.shutdown(wait=True)
+            return result
+        except FuturesTimeoutError:
+            # Cancel the future to stop the validation task
+            future.cancel()
+            logger.warning(f"Global timeout exceeded ({self.global_timeout}s) for email: {email}")
+            
+            # Shutdown without waiting - don't block on timeout
+            # cancel_futures=True cancels pending futures (Python 3.9+)
+            try:
+                executor.shutdown(wait=False, cancel_futures=True)
+            except TypeError:
+                # Python < 3.9 doesn't support cancel_futures parameter
+                executor.shutdown(wait=False)
+            
+            return (email, True, f"Validation timeout exceeded ({self.global_timeout}s)", "unknown")
+        except Exception as e:
+            logger.error(f"Unexpected error during validation of {email}: {e}")
+            # Clean up on error without blocking
+            executor.shutdown(wait=False)
+            return (email, False, f"Validation error: {str(e)}", "unknown")
+    
+    def _validate_internal(self, email: str) -> Tuple[str, bool, str, str]:
+        """
+        Internal validation method that performs the actual validation logic.
+        This method is executed within the timeout wrapper.
+        
+        Args:
+            email: Email address to validate
+            
+        Returns:
+            Tuple of (email, is_valid, reason, category)
+        """
         
         if not email:
             logger.debug("Empty email encountered")

@@ -12,6 +12,12 @@
 # SECTION DOCUMENTATION
 # ============================================================================
 #
+# TIMEOUT:
+#   global_timeout: Global timeout for all validation steps per email (in seconds)
+#                   If the total time for all checks (syntax, disposable, DNS, SMTP)
+#                   exceeds this value, the email is marked as 'unknown'
+#                   Default: 30 seconds
+#
 # CONCURRENCY:
 #   max_workers: Number of concurrent validation jobs (threads)
 #               Each worker processes a different email at the same time
@@ -24,7 +30,6 @@
 #   max_size: Maximum number of domains to cache
 #
 # DNS:
-#   timeout: DNS query timeout in seconds
 #   max_retries: Maximum retry attempts for DNS queries
 #   retry_delay: Delay between retries in seconds
 #   servers: DNS servers to use
@@ -50,7 +55,6 @@
 #   enabled: Enable/disable SMTP validation component
 #            NOTE: Set to true once you add SOCKS5 proxies to data/proxy.txt
 #            Both validation.smtp_validation AND smtp.enabled must be true
-#   timeout: SMTP connection timeout in seconds
 #   max_retries: Maximum retry attempts for SMTP errors
 #   from_email: Email to use in MAIL FROM command
 #   use_proxy: Use SOCKS5 proxy for SMTP connections
@@ -74,6 +78,9 @@
 #
 # ============================================================================
 
+timeout:
+  global_timeout: 30
+
 concurrency:
   max_workers: 1
 
@@ -85,7 +92,6 @@ dns_cache:
   max_size: 10000
 
 dns:
-  timeout: 5
   max_retries: 3
   retry_delay: 0.5
   servers: []
@@ -96,7 +102,6 @@ validation:
 
 smtp:
   enabled: true
-  timeout: 10
   max_retries: 2
   from_email: "verify@example.com"
   use_proxy: true

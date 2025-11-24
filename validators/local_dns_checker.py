@@ -32,7 +32,6 @@ class LocalDNSChecker:
     def __init__(
         self,
         cache_size: int = 10000,
-        timeout: int = 5,
         max_retries: int = 3,
         retry_delay: float = 0.5,
         dns_servers: Optional[List[str]] = None
@@ -42,13 +41,11 @@ class LocalDNSChecker:
         
         Args:
             cache_size: Maximum number of domains to cache
-            timeout: DNS query timeout in seconds
             max_retries: Maximum number of retry attempts
             retry_delay: Delay between retries in seconds
             dns_servers: List of DNS server IPs (default: Google, Cloudflare, OpenDNS)
         """
         self.cache_size = cache_size
-        self.timeout = timeout
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         
@@ -69,9 +66,9 @@ class LocalDNSChecker:
             ]
             logger.info(f"Using default DNS servers: {self.resolver.nameservers}")
         
-        # Set resolver timeouts
-        self.resolver.timeout = timeout
-        self.resolver.lifetime = timeout * 2  # Total timeout (allows retries)
+        # Set resolver timeouts (using reasonable defaults since global timeout controls overall execution)
+        self.resolver.timeout = 3
+        self.resolver.lifetime = 6
         
         # Custom cache for domain lookups (only caches definitive results)
         self._cache = OrderedDict()
@@ -80,7 +77,7 @@ class LocalDNSChecker:
         self._cache_misses = 0
         
         logger.info(f"LocalDNSChecker initialized with cache size: {cache_size}, "
-                   f"timeout: {timeout}s, nameservers: {len(self.resolver.nameservers)}")
+                   f"nameservers: {len(self.resolver.nameservers)}")
     
     def check_domain(self, domain: str) -> Tuple[bool, str]:
         """
