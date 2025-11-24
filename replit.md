@@ -4,7 +4,16 @@
 The Bulk Email Validator is a high-performance, self-hosted Python CLI tool designed for efficient bulk email validation. Its primary purpose is to verify email addresses for deliverability and quality, supporting various business applications requiring clean email lists. Key capabilities include RFC 5322 syntax validation, local DNS resolution for MX records, optional SMTP RCPT TO validation with catch-all domain detection, disposable email blocking, and automatic deduplication. The project aims to provide a fast, reliable, and privacy-focused alternative to API-based validation services, offering a significant performance advantage and full control over the validation process.
 
 ### Recent Changes
-**November 23, 2025 (Latest)**: Project cleanup and file reorganization
+**November 24, 2025 (Latest)**: Global timeout feature and output folder management
+- Implemented global timeout system (default 30s) to prevent emails from taking too long overall
+- Added `timeout.global_timeout` setting to `config/settings.yaml` for easy configuration
+- Removed individual DNS and SMTP timeout parameters in favor of unified global timeout
+- Updated validation pipeline to enforce timeout across all steps (syntax, disposable, DNS, SMTP, catch-all)
+- Emails exceeding the global timeout are marked as "unknown" with timeout reason
+- Added `output/` folder to .gitignore to prevent validation results from being committed to git
+- Each validation runs independently with its own executor, maintaining concurrent processing performance
+
+**November 23, 2025**: Project cleanup and file reorganization
 - Renamed main entry point from `validator.py` to `main.py` for clarity
 - Removed deprecated HTTP DNS API configuration (rate_limit_delay, etc.)
 - The old networkcalc.com API was replaced with local DNS resolution (5-10x faster!)
@@ -43,9 +52,10 @@ The tool is a Command-Line Interface (CLI) application, focusing on functional e
 *   **Disposable Email Blocking:** Utilizes a blocklist of over 4,765 disposable domains.
 *   **Deduplication:** Case-insensitive automatic deduplication of input emails.
 *   **Well-known Domain Separation:** Automatically categorizes emails from 173+ popular providers into separate output files.
+*   **Global Timeout:** Configurable timeout (default 30s) applied to all validation steps combined. If validation exceeds this time, the email is marked as "unknown" to prevent indefinite blocking.
 *   **Concurrency:** Utilizes `ThreadPoolExecutor` for high-speed concurrent processing (100-500 emails/sec without SMTP, 10-50 emails/sec with SMTP validation).
-*   **Configuration:** All settings are externalized in `config/settings.yaml`, allowing granular control over validation rules, DNS, SMTP, proxy, and performance parameters.
-*   **Output:** Generates four distinct output categories: `valid`, `risk` (catch-all), `invalid`, and `unknown` (SMTP errors).
+*   **Configuration:** All settings are externalized in `config/settings.yaml`, allowing granular control over validation rules, DNS, SMTP, proxy, timeout, and performance parameters.
+*   **Output:** Generates four distinct output categories: `valid`, `risk` (catch-all), `invalid`, and `unknown` (SMTP errors or timeout). Output files are excluded from git via .gitignore.
 
 **System Design Choices:**
 *   **Modular Design:** The codebase is organized into a `validators/` package with clear separation of concerns (e.g., `syntax_validator.py`, `local_dns_checker.py`, `smtp_validator.py`, `proxy_manager.py`, `io_handler.py`, `core.py`). This promotes testability and maintainability.
