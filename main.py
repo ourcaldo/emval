@@ -328,6 +328,7 @@ def main():
     io_handler = EmailIOHandler(
         input_file=paths_config.get('input_file', 'data/emails.txt'),
         valid_output_dir=paths_config.get('valid_output_dir', 'output/valid'),
+        all_valid_output=paths_config.get('all_valid_output', 'output/all-valid.txt'),
         risk_output_dir=paths_config.get('risk_output_dir', 'output/risk'),
         invalid_output=paths_config.get('invalid_output', 'output/invalid.txt'),
         unknown_output=paths_config.get('unknown_output', 'output/unknown.txt'),
@@ -457,13 +458,14 @@ def main():
     print()
     print("Output Files:")
     if valid_count > 0:
-        print(f"  ✓ Valid emails: {output_info['valid_dir']}/")
+        print(f"  ✓ Valid emails (by domain): {output_info['valid_dir']}/")
+        print(f"  ✓ Valid emails (all):       {output_info['all_valid_file']}")
     if risk_count > 0:
-        print(f"  ⚠ Risk emails:  {output_info['risk_dir']}/")
+        print(f"  ⚠ Risk emails:              {output_info['risk_dir']}/")
     if invalid_count > 0:
-        print(f"  ✗ Invalid:      {output_info['invalid_file']}")
+        print(f"  ✗ Invalid:                  {output_info['invalid_file']}")
     if unknown_count > 0:
-        print(f"  ? Unknown:      {output_info['unknown_file']}")
+        print(f"  ? Unknown:                  {output_info['unknown_file']}")
     print("=" * 70)
 
     # Log DNS cache statistics

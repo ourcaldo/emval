@@ -65,7 +65,8 @@
 #   well_known_domains: Path to well-known email providers list
 #   proxy_list: Path to SOCKS5 proxy list
 #   input_file: Path to input emails file
-#   valid_output_dir: Directory for valid emails
+#   valid_output_dir: Directory for valid emails (separated by domain)
+#   all_valid_output: Path to all valid emails file (all valid emails in one file)
 #   risk_output_dir: Directory for risky emails (catch-all domains)
 #   invalid_output: Path to invalid emails file
 #   unknown_output: Path to unknown emails file (SMTP errors)
@@ -113,6 +114,7 @@ paths:
   proxy_list: "data/proxy.txt"
   input_file: "data/emails.txt"
   valid_output_dir: "output/valid"
+  all_valid_output: "output/all-valid.txt"
   risk_output_dir: "output/risk"
   invalid_output: "output/invalid.txt"
   unknown_output: "output/unknown.txt"

@@ -20,6 +20,7 @@ class EmailIOHandler:
         self,
         input_file: str,
         valid_output_dir: str,
+        all_valid_output: str,
         risk_output_dir: str,
         invalid_output: str,
         unknown_output: str,
@@ -31,6 +32,7 @@ class EmailIOHandler:
         Args:
             input_file: Path to input emails file
             valid_output_dir: Directory for valid emails output (passed all validations)
+            all_valid_output: Path to all-valid emails output file (all valid emails in one file)
             risk_output_dir: Directory for risky emails output (catch-all domains)
             invalid_output: Path to invalid emails output file
             unknown_output: Path to unknown emails output file (SMTP errors)
@@ -38,6 +40,7 @@ class EmailIOHandler:
         """
         self.input_file = input_file
         self.valid_output_dir = valid_output_dir
+        self.all_valid_output = all_valid_output
         self.risk_output_dir = risk_output_dir
         self.invalid_output = invalid_output
         self.unknown_output = unknown_output
@@ -160,6 +163,7 @@ class EmailIOHandler:
         directories = [
             self.valid_output_dir,
             self.risk_output_dir,
+            os.path.dirname(self.all_valid_output),
             os.path.dirname(self.invalid_output),
             os.path.dirname(self.unknown_output)
         ]
@@ -343,13 +347,24 @@ class EmailIOHandler:
                         logger.debug(f"Email already saved, skipping: {email}")
                         return
                     
-                    # Append email to file
+                    # For valid emails, also check if already in all-valid file
+                    if category == 'valid' and self._is_email_already_saved(self.all_valid_output, email):
+                        logger.debug(f"Email already in all-valid file, skipping: {email}")
+                        return
+                    
+                    # Append email to domain-specific file
                     with open(output_file, 'a', encoding='utf-8') as f:
                         f.write(f"{email}\n")
-                    
-                    # Update cache AFTER successful write
                     self._mark_email_as_saved(output_file, email)
-                    logger.debug(f"Saved {category} email to {output_file}: {email}")
+                    
+                    # For valid emails, also write to all-valid.txt file atomically
+                    if category == 'valid':
+                        with open(self.all_valid_output, 'a', encoding='utf-8') as f:
+                            f.write(f"{email}\n")
+                        self._mark_email_as_saved(self.all_valid_output, email)
+                        logger.debug(f"Saved valid email to {output_file} and all-valid file: {email}")
+                    else:
+                        logger.debug(f"Saved {category} email to {output_file}: {email}")
                 
                 elif category == 'invalid':
                     # Write to invalid file
@@ -436,6 +451,7 @@ class EmailIOHandler:
         """
         return {
             'valid_dir': self.valid_output_dir,
+            'all_valid_file': self.all_valid_output,
             'risk_dir': self.risk_output_dir,
             'invalid_file': self.invalid_output,
             'unknown_file': self.unknown_output
