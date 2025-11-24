@@ -4,7 +4,15 @@
 The Bulk Email Validator is a high-performance, self-hosted Python CLI tool designed for efficient bulk email validation. Its primary purpose is to verify email addresses for deliverability and quality, supporting various business applications requiring clean email lists. Key capabilities include RFC 5322 syntax validation, local DNS resolution for MX records, optional SMTP RCPT TO validation with catch-all domain detection, disposable email blocking, and automatic deduplication. The project aims to provide a fast, reliable, and privacy-focused alternative to API-based validation services, offering a significant performance advantage and full control over the validation process.
 
 ### Recent Changes
-**November 24, 2025 (Latest)**: Global timeout feature and output folder management
+**November 24, 2025 (Latest)**: Incremental data persistence for fault tolerance
+- Implemented incremental saving: each email result is written to disk immediately after validation
+- **Key improvement:** Validated data is now preserved even if the process is stopped mid-way
+- Added thread-safe `write_single_result()` method with O(n) performance using in-memory caching
+- Results are no longer buffered in memory - they're written directly to output files as they complete
+- Duplicate detection prevents re-writing emails across multiple runs
+- Enables safe interruption: you can stop the validator at any time and resume later without losing progress
+
+**November 24, 2025**: Global timeout feature and output folder management
 - Implemented global timeout system (default 30s) to prevent emails from taking too long overall
 - Added `timeout.global_timeout` setting to `config/settings.yaml` for easy configuration
 - Removed individual DNS and SMTP timeout parameters in favor of unified global timeout
@@ -56,6 +64,7 @@ The tool is a Command-Line Interface (CLI) application, focusing on functional e
 *   **Concurrency:** Utilizes `ThreadPoolExecutor` for high-speed concurrent processing (100-500 emails/sec without SMTP, 10-50 emails/sec with SMTP validation).
 *   **Configuration:** All settings are externalized in `config/settings.yaml`, allowing granular control over validation rules, DNS, SMTP, proxy, timeout, and performance parameters.
 *   **Output:** Generates four distinct output categories: `valid`, `risk` (catch-all), `invalid`, and `unknown` (SMTP errors or timeout). Output files are excluded from git via .gitignore.
+*   **Incremental Persistence:** Results are written to disk immediately after each email validation (not buffered in memory). This ensures data is preserved if the process is stopped or crashes. Thread-safe with O(n) performance using in-memory caching for duplicate detection.
 
 **System Design Choices:**
 *   **Modular Design:** The codebase is organized into a `validators/` package with clear separation of concerns (e.g., `syntax_validator.py`, `local_dns_checker.py`, `smtp_validator.py`, `proxy_manager.py`, `io_handler.py`, `core.py`). This promotes testability and maintainability.
