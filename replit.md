@@ -4,7 +4,15 @@
 The Bulk Email Validator is a high-performance, self-hosted Python CLI tool designed for efficient bulk email validation. Its primary purpose is to verify email addresses for deliverability and quality, supporting various business applications requiring clean email lists. Key capabilities include RFC 5322 syntax validation, local DNS resolution for MX records, optional SMTP RCPT TO validation with catch-all domain detection, disposable email blocking, and automatic deduplication. The project aims to provide a fast, reliable, and privacy-focused alternative to API-based validation services, offering a significant performance advantage and full control over the validation process.
 
 ### Recent Changes
-**November 24, 2025 (Latest)**: Incremental data persistence for fault tolerance
+**November 24, 2025 (Latest)**: All-valid output file enhancement
+- Added new `all-valid.txt` output file that contains ALL valid emails in a single file
+- Valid emails are now available in three formats: (1) domain-separated files, (2) other.txt for less common domains, (3) all-valid.txt for all valid emails combined
+- Thread-safe implementation ensures no duplicates under concurrent processing
+- Updated configuration with `all_valid_output` path in `config/settings.yaml`
+- Summary output now displays both "Valid emails (by domain)" and "Valid emails (all)" for clarity
+- Provides users with convenient access to all valid emails without needing to merge domain files
+
+**November 24, 2025**: Incremental data persistence for fault tolerance
 - Implemented incremental saving: each email result is written to disk immediately after validation
 - **Key improvement:** Validated data is now preserved even if the process is stopped mid-way
 - Added thread-safe `write_single_result()` method with O(n) performance using in-memory caching
@@ -65,7 +73,7 @@ The tool is a Command-Line Interface (CLI) application, focusing on functional e
 *   **Global Timeout:** Configurable timeout (default 30s) applied to all validation steps combined. If validation exceeds this time, the email is marked as "unknown" to prevent indefinite blocking.
 *   **Concurrency:** Utilizes `ThreadPoolExecutor` for high-speed concurrent processing (100-500 emails/sec without SMTP, 10-50 emails/sec with SMTP validation).
 *   **Configuration:** All settings are externalized in `config/settings.yaml`, allowing granular control over validation rules, DNS, SMTP, proxy, timeout, and performance parameters.
-*   **Output:** Generates four distinct output categories: `valid`, `risk` (catch-all), `invalid`, and `unknown` (SMTP errors or timeout). Output files are excluded from git via .gitignore.
+*   **Output:** Generates four distinct output categories: `valid`, `risk` (catch-all), `invalid`, and `unknown` (SMTP errors or timeout). Valid emails are provided in three formats: (1) domain-separated files in `output/valid/` directory for well-known domains (gmail.com.txt, yahoo.com.txt, etc.), (2) `other.txt` for less common domains, and (3) `all-valid.txt` containing all valid emails in a single file for convenience. Output files are excluded from git via .gitignore.
 *   **Incremental Persistence:** Results are written to disk immediately after each email validation (not buffered in memory). This ensures data is preserved if the process is stopped or crashes. Thread-safe with O(n) performance using in-memory caching for duplicate detection.
 
 **System Design Choices:**
