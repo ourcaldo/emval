@@ -12,3 +12,5 @@ dnspython
 pysocks
 dnspython
 pysocks
+dnspython
+pysocks
