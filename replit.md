@@ -11,6 +11,8 @@ The Bulk Email Validator is a high-performance, self-hosted Python CLI tool desi
 - Results are no longer buffered in memory - they're written directly to output files as they complete
 - Duplicate detection prevents re-writing emails across multiple runs
 - Enables safe interruption: you can stop the validator at any time and resume later without losing progress
+- Fixed clean exit: Program now exits cleanly without hanging threads (daemon threads used for timeout)
+- Added graceful CTRL+C handling: Shows progress saved when interrupted by user
 
 **November 24, 2025**: Global timeout feature and output folder management
 - Implemented global timeout system (default 30s) to prevent emails from taking too long overall

@@ -373,56 +373,63 @@ def main():
     display.show_config = True
     display.config_info = config_info
 
-    # Process all emails concurrently (each worker handles different emails)
-    with ThreadPoolExecutor(max_workers=concurrent_jobs) as executor:
-        # Submit all emails at once
-        futures = {
-            executor.submit(validation_service.validate, email): email
-            for email in emails
-        }
+    try:
+        # Process all emails concurrently (each worker handles different emails)
+        with ThreadPoolExecutor(max_workers=concurrent_jobs) as executor:
+            # Submit all emails at once
+            futures = {
+                executor.submit(validation_service.validate, email): email
+                for email in emails
+            }
 
-        # Process results as they complete
-        for future in as_completed(futures):
-            email, is_valid, reason, category = future.result()
-            completed += 1
+            # Process results as they complete
+            for future in as_completed(futures):
+                email, is_valid, reason, category = future.result()
+                completed += 1
 
-            # Write result immediately (incremental saving)
-            io_handler.write_single_result(email, reason, category)
+                # Write result immediately (incremental saving)
+                io_handler.write_single_result(email, reason, category)
 
-            # Update category counters
-            if category == 'valid':
-                valid_count += 1
-            elif category == 'risk':
-                risk_count += 1
-            elif category == 'invalid':
-                invalid_count += 1
-            elif category == 'unknown':
-                unknown_count += 1
+                # Update category counters
+                if category == 'valid':
+                    valid_count += 1
+                elif category == 'risk':
+                    risk_count += 1
+                elif category == 'invalid':
+                    invalid_count += 1
+                elif category == 'unknown':
+                    unknown_count += 1
 
-            # Calculate metrics
-            current_time = time.time()
-            elapsed = current_time - start_time
-            speed = completed / elapsed if elapsed > 0 else 0
+                # Calculate metrics
+                current_time = time.time()
+                elapsed = current_time - start_time
+                speed = completed / elapsed if elapsed > 0 else 0
 
-            # Calculate ETA
-            eta_str = ""
-            if speed > 0 and completed < len(emails):
-                remaining = len(emails) - completed
-                eta_seconds = remaining / speed
-                eta_str = format_time(eta_seconds)
+                # Calculate ETA
+                eta_str = ""
+                if speed > 0 and completed < len(emails):
+                    remaining = len(emails) - completed
+                    eta_seconds = remaining / speed
+                    eta_str = format_time(eta_seconds)
 
-            # Display dynamic progress dashboard
-            display.print_progress(
-                current=completed,
-                total=len(emails),
-                valid=valid_count,
-                risk=risk_count,
-                invalid=invalid_count,
-                unknown=unknown_count,
-                speed=speed,
-                time_taken=elapsed,
-                eta_str=eta_str
-            )
+                # Display dynamic progress dashboard
+                display.print_progress(
+                    current=completed,
+                    total=len(emails),
+                    valid=valid_count,
+                    risk=risk_count,
+                    invalid=invalid_count,
+                    unknown=unknown_count,
+                    speed=speed,
+                    time_taken=elapsed,
+                    eta_str=eta_str
+                )
+    
+    except KeyboardInterrupt:
+        print("\n\n⏹️  Validation interrupted by user (CTRL+C)")
+        print(f"✓ Progress saved: {completed}/{len(emails)} emails processed")
+        logger.info(f"Validation interrupted by user at {completed}/{len(emails)} emails")
+        # Don't exit - let the summary print below with partial results
 
     # Finish progress display and clear it completely
     display.finish()

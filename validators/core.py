@@ -95,36 +95,44 @@ class EmailValidationService:
         """
         email = email.strip().lower()
         
-        # Create executor explicitly (not using context manager to avoid blocking on timeout)
-        # Each validation gets its own executor to support concurrent validations
-        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"validator_{email[:10]}")
-        future = executor.submit(self._validate_internal, email)
-        
-        try:
-            # Wait for result with global timeout
-            result = future.result(timeout=self.global_timeout)
-            # Success - clean up properly by waiting for the thread to complete
-            executor.shutdown(wait=True)
-            return result
-        except FuturesTimeoutError:
-            # Cancel the future to stop the validation task
-            future.cancel()
-            logger.warning(f"Global timeout exceeded ({self.global_timeout}s) for email: {email}")
-            
-            # Shutdown without waiting - don't block on timeout
-            # cancel_futures=True cancels pending futures (Python 3.9+)
+        # If timeout is very large (>100s), skip timeout wrapper for performance
+        # Most emails complete in <5s, so timeout wrapper is only needed for stuck emails
+        if self.global_timeout > 100:
             try:
-                executor.shutdown(wait=False, cancel_futures=True)
-            except TypeError:
-                # Python < 3.9 doesn't support cancel_futures parameter
-                executor.shutdown(wait=False)
-            
+                return self._validate_internal(email)
+            except Exception as e:
+                logger.error(f"Unexpected error during validation of {email}: {e}")
+                return (email, False, f"Validation error: {str(e)}", "unknown")
+        
+        # Use timeout wrapper for stuck emails
+        result_container = []
+        error_container = []
+        
+        def run_validation():
+            try:
+                result = self._validate_internal(email)
+                result_container.append(result)
+            except Exception as e:
+                error_container.append(e)
+        
+        # Create daemon thread (auto-terminates when main program exits)
+        thread = threading.Thread(target=run_validation, daemon=True)
+        thread.start()
+        thread.join(timeout=self.global_timeout)
+        
+        # Check results
+        if result_container:
+            return result_container[0]
+        elif error_container:
+            logger.error(f"Unexpected error during validation of {email}: {error_container[0]}")
+            return (email, False, f"Validation error: {str(error_container[0])}", "unknown")
+        elif thread.is_alive():
+            # Timeout - thread is still running but we don't wait
+            logger.warning(f"Global timeout exceeded ({self.global_timeout}s) for email: {email}")
             return (email, True, f"Validation timeout exceeded ({self.global_timeout}s)", "unknown")
-        except Exception as e:
-            logger.error(f"Unexpected error during validation of {email}: {e}")
-            # Clean up on error without blocking
-            executor.shutdown(wait=False)
-            return (email, False, f"Validation error: {str(e)}", "unknown")
+        else:
+            # Thread finished but no result (shouldn't happen)
+            return (email, False, "Validation failed unexpectedly", "unknown")
     
     def _validate_internal(self, email: str) -> Tuple[str, bool, str, str]:
         """
