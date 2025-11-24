@@ -6,6 +6,7 @@ from typing import List, Tuple, Dict, Set, Sequence
 import os
 import re
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,9 @@ class EmailIOHandler:
         self.unknown_output = unknown_output
         self.well_known_domains_file = well_known_domains_file
         self.well_known_domains = self._load_well_known_domains()
+        self._write_lock = threading.Lock()
+        self._directories_created = False
+        self._seen_emails_cache = {}
     
     def _load_well_known_domains(self) -> Set[str]:
         """
@@ -300,6 +304,128 @@ class EmailIOHandler:
         """Print summary to console - Disabled for cleaner output."""
         # Summary is now merged into VALIDATION SUMMARY in main()
         pass
+    
+    def write_single_result(self, email: str, reason: str, category: str):
+        """
+        Write a single email result immediately (thread-safe).
+        This allows incremental saving so data is preserved even if process is stopped.
+        
+        Args:
+            email: Email address
+            reason: Validation reason/message
+            category: Category ('valid', 'risk', 'invalid', 'unknown')
+        """
+        with self._write_lock:
+            # Create output directories on first write
+            if not self._directories_created:
+                self._create_output_directories()
+                self._directories_created = True
+            
+            try:
+                # Extract domain for categorization
+                domain = email.split('@')[1].lower() if '@' in email else None
+                
+                if category == 'valid' or category == 'risk':
+                    # Determine output directory
+                    output_dir = self.valid_output_dir if category == 'valid' else self.risk_output_dir
+                    
+                    # Check if well-known domain
+                    if domain and domain in self.well_known_domains:
+                        # Write to domain-specific file
+                        safe_domain = self.sanitize_domain_filename(domain)
+                        output_file = os.path.join(output_dir, f"{safe_domain}.txt")
+                    else:
+                        # Write to other.txt
+                        output_file = os.path.join(output_dir, "other.txt")
+                    
+                    # Check for duplicates before writing
+                    if self._is_email_already_saved(output_file, email):
+                        logger.debug(f"Email already saved, skipping: {email}")
+                        return
+                    
+                    # Append email to file
+                    with open(output_file, 'a', encoding='utf-8') as f:
+                        f.write(f"{email}\n")
+                    
+                    # Update cache AFTER successful write
+                    self._mark_email_as_saved(output_file, email)
+                    logger.debug(f"Saved {category} email to {output_file}: {email}")
+                
+                elif category == 'invalid':
+                    # Write to invalid file
+                    if self._is_email_already_saved(self.invalid_output, email):
+                        logger.debug(f"Email already saved, skipping: {email}")
+                        return
+                    
+                    with open(self.invalid_output, 'a', encoding='utf-8') as f:
+                        f.write(f"{email}\n")
+                    
+                    # Update cache AFTER successful write
+                    self._mark_email_as_saved(self.invalid_output, email)
+                    logger.debug(f"Saved invalid email: {email}")
+                
+                elif category == 'unknown':
+                    # Write to unknown file
+                    if self._is_email_already_saved(self.unknown_output, email):
+                        logger.debug(f"Email already saved, skipping: {email}")
+                        return
+                    
+                    with open(self.unknown_output, 'a', encoding='utf-8') as f:
+                        f.write(f"{email}\n")
+                    
+                    # Update cache AFTER successful write
+                    self._mark_email_as_saved(self.unknown_output, email)
+                    logger.debug(f"Saved unknown email: {email}")
+                
+            except Exception as e:
+                logger.error(f"Error writing single result for {email}: {e}")
+    
+    def _is_email_already_saved(self, file_path: str, email: str) -> bool:
+        """
+        Check if email is already saved in the file to avoid duplicates.
+        Uses in-memory cache to avoid O(n^2) file I/O.
+        This is a pure check - does NOT mutate the cache.
+        
+        Args:
+            file_path: Path to the output file
+            email: Email to check
+            
+        Returns:
+            True if email already exists in file or cache, False otherwise
+        """
+        # Lazy load cache for this file on first access
+        if file_path not in self._seen_emails_cache:
+            self._seen_emails_cache[file_path] = set()
+            
+            # If file exists, load existing emails into cache
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        existing_emails = set(line.strip().lower() for line in f if line.strip())
+                    self._seen_emails_cache[file_path] = existing_emails
+                    logger.debug(f"Loaded {len(existing_emails)} existing emails into cache for {file_path}")
+                except Exception as e:
+                    logger.error(f"Error loading cache for {file_path}: {e}")
+        
+        # Check cache (pure check, no mutation)
+        email_lower = email.lower()
+        return email_lower in self._seen_emails_cache[file_path]
+    
+    def _mark_email_as_saved(self, file_path: str, email: str):
+        """
+        Mark email as saved in the cache AFTER successful write.
+        
+        Args:
+            file_path: Path to the output file
+            email: Email to mark as saved
+        """
+        # Ensure cache exists for this file
+        if file_path not in self._seen_emails_cache:
+            self._seen_emails_cache[file_path] = set()
+        
+        # Add to cache
+        email_lower = email.lower()
+        self._seen_emails_cache[file_path].add(email_lower)
     
     def get_output_info(self) -> dict:
         """

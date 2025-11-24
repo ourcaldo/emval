@@ -359,7 +359,6 @@ def main():
         print(f"Removed {duplicates_removed} duplicate emails")
     print()
 
-    all_results = []
     start_time = time.time()
     completed = 0
 
@@ -387,7 +386,8 @@ def main():
             email, is_valid, reason, category = future.result()
             completed += 1
 
-            all_results.append((email, reason, category))
+            # Write result immediately (incremental saving)
+            io_handler.write_single_result(email, reason, category)
 
             # Update category counters
             if category == 'valid':
@@ -431,10 +431,7 @@ def main():
 
     logger.info(f"Validation completed: Valid={valid_count}, Risk={risk_count}, Invalid={invalid_count}, Unknown={unknown_count}")
 
-    # Write results
-    io_handler.write_results(all_results)
-
-    # Get output file info
+    # Get output file info (results already written incrementally)
     output_info = io_handler.get_output_info()
 
     # Print final summary (clean, after progress is cleared)
