@@ -1,6 +1,7 @@
 """
 Strict email syntax validator with custom rules.
 NO plus-addressing, NO hyphens in local part, strict character restrictions.
+Rejects emails where local part has all numbers or more numbers than letters.
 """
 
 import re
@@ -19,6 +20,8 @@ class EmailSyntaxValidator:
     - Local part: Only a-z A-Z 0-9 . _ (NO +, NO -, NO other special chars)
     - Dots and underscores cannot be at start or end of local part
     - No consecutive dots
+    - Local part must contain at least one letter (no all-numeric usernames)
+    - Local part must have more letters than numbers (number-heavy = invalid)
     - Domain: Standard format with IANA TLD validation
     - TLD: Minimum 2 characters, letters only, validated against IANA list
     """
@@ -102,6 +105,8 @@ class EmailSyntaxValidator:
         - Cannot end with dot or underscore
         - No consecutive dots
         - Length: 1-64 characters
+        - Must contain at least one letter (no all-numeric usernames)
+        - Must have more letters than numbers (number-heavy = invalid)
         
         Args:
             local: Local part (before @)
@@ -150,6 +155,18 @@ class EmailSyntaxValidator:
         pattern = re.compile(self.LOCAL_PART_PATTERN)
         if not pattern.match(local):
             return False, "Local part contains invalid characters (only a-z A-Z 0-9 . _ allowed)"
+        
+        # Count letters and numbers in local part (excluding dots and underscores)
+        letter_count = sum(1 for c in local if c.isalpha())
+        digit_count = sum(1 for c in local if c.isdigit())
+        
+        # Check for all-numeric local part (no letters at all)
+        if letter_count == 0 and digit_count > 0:
+            return False, "Local part cannot be all numeric (must contain at least one letter)"
+        
+        # Check if numbers outweigh letters (more numbers than letters = suspicious)
+        if digit_count > letter_count:
+            return False, f"Local part has too many numbers ({digit_count}) compared to letters ({letter_count})"
         
         return True, ""
     

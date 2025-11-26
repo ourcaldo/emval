@@ -17,3 +17,10 @@ user@fakdomain123.xyz
 test@example.com
 contact@disposable.com
 no-at-sign
+123456@gmail.com
+999888777@yahoo.com
+a123456@gmail.com
+user1234567@outlook.com
+abc123@gmail.com
+abcdef1@gmail.com
+john.doe@example.com
