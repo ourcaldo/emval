@@ -4,7 +4,15 @@
 The Bulk Email Validator is a high-performance, self-hosted Python CLI tool designed for efficient bulk email validation. Its primary purpose is to verify email addresses for deliverability and quality, supporting various business applications requiring clean email lists. Key capabilities include RFC 5322 syntax validation, local DNS resolution for MX records, optional SMTP RCPT TO validation with catch-all domain detection, disposable email blocking, and automatic deduplication. The project aims to provide a fast, reliable, and privacy-focused alternative to API-based validation services, offering a significant performance advantage and full control over the validation process.
 
 ### Recent Changes
-**November 24, 2025 (Latest)**: All-valid output file enhancement
+**November 26, 2025 (Latest)**: Enhanced syntax validation for number-heavy emails
+- Added validation to reject emails with all-numeric local parts (e.g., `123456@gmail.com`)
+- Added validation to reject emails where numbers exceed letters in local part (e.g., `a123456@gmail.com` has 1 letter and 6 numbers)
+- Emails with equal numbers and letters are allowed (e.g., `abc123@gmail.com` with 3 letters and 3 numbers)
+- Emails with more letters than numbers pass validation (e.g., `abcdef1@gmail.com` with 6 letters and 1 number)
+- Clear error messages explain why emails are rejected (e.g., "Local part has too many numbers (6) compared to letters (1)")
+- Updated docstrings in `EmailSyntaxValidator` class to document new rules
+
+**November 24, 2025**: All-valid output file enhancement
 - Added new `all-valid.txt` output file that contains ALL valid emails in a single file
 - Valid emails are now available in three formats: (1) domain-separated files, (2) other.txt for less common domains, (3) all-valid.txt for all valid emails combined
 - Thread-safe implementation ensures no duplicates under concurrent processing
@@ -62,9 +70,10 @@ The tool is a Command-Line Interface (CLI) application, focusing on functional e
 *   **Syntax Validation:** Strict custom rules (stricter than RFC 5322):
     *   **Local Part (before @):** ONLY allows letters (a-z A-Z), numbers (0-9), dots (.), and underscores (_). NO plus-addressing (+), NO hyphens (-), NO other special characters.
     *   **Position Rules:** Dots and underscores cannot be at start or end of local part. No consecutive dots allowed. Consecutive underscores ARE allowed.
+    *   **Number/Letter Ratio:** Local part must contain at least one letter (no all-numeric usernames). Numbers cannot exceed letters in count (number-heavy emails are marked invalid).
     *   **Domain Part (after @):** Standard format with labels containing letters, numbers, hyphens (not at start/end).
     *   **TLD Validation:** Minimum 2 characters, letters only, validated against official IANA TLD list (downloaded fresh on each run from https://data.iana.org/TLD/tlds-alpha-by-domain.txt).
-    *   **Examples:** ✅ user@example.com, user_name@example.com, user__test@example.com, user._name@example.com | ❌ user+tag@example.com, user-name@example.com, _user@example.com, user_@example.com
+    *   **Examples:** ✅ user@example.com, user_name@example.com, abc123@example.com, john.doe@example.com | ❌ user+tag@example.com, user-name@example.com, 123456@example.com, a123456@example.com
 *   **DNS Resolution:** Local DNS resolution using `dnspython` for MX records, significantly faster than API calls. Supports multi-provider DNS with fallback (Google, Cloudflare, OpenDNS) and smart LRU caching for definitive results (up to 10,000 domains).
 *   **SMTP Validation:** Optional RCPT TO validation with SOCKS5 proxy support, including mailbox existence verification and catch-all domain detection using random address probing. Features thread-safe rate limiting (1 request/proxy/second) and multi-port support (25, 587).
 *   **Disposable Email Blocking:** Utilizes a blocklist of over 4,765 disposable domains.
