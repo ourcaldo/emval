@@ -1,0 +1,55 @@
+root@vms-syd-ibm:~/emval# python main.py
+======================================================================
+BULK EMAIL VALIDATOR
+======================================================================
+Concurrent Jobs: 1
+
+Initializing validation components...
+Warning: SMTP proxy enabled but no valid SOCKS5 proxies found in proxy list file.
+
+Loaded 26 unique emails from data/emails.txt
+
+======================================================================
+VALIDATOR CONFIGURATION
+
+DNS deliverability:  Enabled
+SMTP validation:     Enabled
+Retry attempts:      3
+DNS cache size:      10000 domains
+SOCKS5 proxy:        Disabled
+Well-known domains:  173
+Disposable domains:  4765
+======================================================================
+
+======================================================================
+VALIDATION SUMMARY
+======================================================================
+
+Total Emails:         26
+Valid (safe):          0
+Risk (catch-all):      1
+Invalid:              12
+Unknown:              13
+
+Time Taken:       27s
+Speed:            0.96 emails/second
+
+Output Files:
+  ⚠ Risk emails:              output/risk/
+  ✗ Invalid:                  output/invalid.txt
+  ? Unknown:                  output/unknown.txt
+======================================================================
+root@vms-syd-ibm:~/emval# ls
+PROJECT_ANALYSIS.md  config                     email_validation_notes.md  output          requirements.txt
+README.md            data                       log                        pyproject.toml  uv.lock
+attached_assets      dynamic-progress-guide.md  main.py                    replit.md       validators
+root@vms-syd-ibm:~/emval# cd output
+root@vms-syd-ibm:~/emval/output# ls
+invalid.txt  risk  unknown.txt  valid
+root@vms-syd-ibm:~/emval/output# cd valid
+root@vms-syd-ibm:~/emval/output/valid# ls
+root@vms-syd-ibm:~/emval/output/valid# ls -a
+.  ..
+root@vms-syd-ibm:~/emval/output/valid# cd .
+root@vms-syd-ibm:~/emval/output/valid# ls
+root@vms-syd-ibm:~/emval/output/valid#

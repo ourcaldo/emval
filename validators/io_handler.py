@@ -342,26 +342,32 @@ class EmailIOHandler:
                         # Write to other.txt
                         output_file = os.path.join(output_dir, "other.txt")
                     
-                    # Check for duplicates before writing
-                    if self._is_email_already_saved(output_file, email):
-                        logger.debug(f"Email already saved, skipping: {email}")
-                        return
+                    # Check for duplicates in domain-specific file
+                    domain_file_duplicate = self._is_email_already_saved(output_file, email)
                     
-                    # For valid emails, also check if already in all-valid file
-                    if category == 'valid' and self._is_email_already_saved(self.all_valid_output, email):
-                        logger.debug(f"Email already in all-valid file, skipping: {email}")
-                        return
-                    
-                    # Append email to domain-specific file
-                    with open(output_file, 'a', encoding='utf-8') as f:
-                        f.write(f"{email}\n")
-                    self._mark_email_as_saved(output_file, email)
-                    
-                    # For valid emails, also write to all-valid.txt file atomically
+                    # For valid emails, also check all-valid file
+                    all_valid_duplicate = False
                     if category == 'valid':
+                        all_valid_duplicate = self._is_email_already_saved(self.all_valid_output, email)
+                    
+                    # Skip only if BOTH files already have the email
+                    if domain_file_duplicate and (category != 'valid' or all_valid_duplicate):
+                        logger.debug(f"Email already saved in all locations, skipping: {email}")
+                        return
+                    
+                    # Write to domain-specific file if not already there
+                    if not domain_file_duplicate:
+                        with open(output_file, 'a', encoding='utf-8') as f:
+                            f.write(f"{email}\n")
+                        self._mark_email_as_saved(output_file, email)
+                    
+                    # For valid emails, also write to all-valid.txt if not already there
+                    if category == 'valid' and not all_valid_duplicate:
                         with open(self.all_valid_output, 'a', encoding='utf-8') as f:
                             f.write(f"{email}\n")
                         self._mark_email_as_saved(self.all_valid_output, email)
+                    
+                    if category == 'valid':
                         logger.debug(f"Saved valid email to {output_file} and all-valid file: {email}")
                     else:
                         logger.debug(f"Saved {category} email to {output_file}: {email}")

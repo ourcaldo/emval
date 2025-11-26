@@ -4,13 +4,15 @@
 The Bulk Email Validator is a high-performance, self-hosted Python CLI tool designed for efficient bulk email validation. Its primary purpose is to verify email addresses for deliverability and quality, supporting various business applications requiring clean email lists. Key capabilities include RFC 5322 syntax validation, local DNS resolution for MX records, optional SMTP RCPT TO validation with catch-all domain detection, disposable email blocking, and automatic deduplication. The project aims to provide a fast, reliable, and privacy-focused alternative to API-based validation services, offering a significant performance advantage and full control over the validation process.
 
 ### Recent Changes
-**November 26, 2025 (Latest)**: Enhanced syntax validation for number-heavy emails
+**November 26, 2025 (Latest)**: Bug fix for domain file output + syntax validation enhancement
+- **Critical bug fix:** Fixed issue where `output/valid/` domain files were empty when `all-valid.txt` existed from previous runs
+- Root cause: Duplicate check for `all-valid.txt` was causing early return that skipped domain file writes
+- Fix: Each output file (domain files and all-valid.txt) now checked and written independently
 - Added validation to reject emails with all-numeric local parts (e.g., `123456@gmail.com`)
 - Added validation to reject emails where numbers exceed letters in local part (e.g., `a123456@gmail.com` has 1 letter and 6 numbers)
 - Emails with equal numbers and letters are allowed (e.g., `abc123@gmail.com` with 3 letters and 3 numbers)
 - Emails with more letters than numbers pass validation (e.g., `abcdef1@gmail.com` with 6 letters and 1 number)
 - Clear error messages explain why emails are rejected (e.g., "Local part has too many numbers (6) compared to letters (1)")
-- Updated docstrings in `EmailSyntaxValidator` class to document new rules
 
 **November 24, 2025**: All-valid output file enhancement
 - Added new `all-valid.txt` output file that contains ALL valid emails in a single file

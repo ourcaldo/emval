@@ -64,7 +64,7 @@
 #   disposable_domains: Path to disposable domains blocklist
 #   well_known_domains: Path to well-known email providers list
 #   proxy_list: Path to SOCKS5 proxy list
-#   input_file: Path to input emails file
+#   input_file: "data/emails.txt"
 #   valid_output_dir: Directory for valid emails (separated by domain)
 #   all_valid_output: Path to all valid emails file (all valid emails in one file)
 #   risk_output_dir: Directory for risky emails (catch-all domains)
